@@ -12,7 +12,7 @@ class GeminiProvider(LLMProvider):
     
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-3.6-flash"
         
     def generate_response(self, prompt: str, tools_schema: List[Dict[str, Any]], execute_tool_callback: callable) -> str:
         if not self.api_key:
