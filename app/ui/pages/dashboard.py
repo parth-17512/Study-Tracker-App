@@ -102,30 +102,24 @@ class DashboardPage(QWidget):
         self.recent_card.addLayout(recent_layout)
         bottom_layout.addWidget(self.recent_card, stretch=1)
         
-        # 3b. Chart Placeholder
-        chart_card = Card()
-        chart_layout = QVBoxLayout()
-        chart_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # 3b. Heatmap Activity
+        from app.ui.components.heatmap import HeatmapWidget
+        self.heatmap = HeatmapWidget(daily_goal_seconds=self.daily_goal_seconds)
+        self.heatmap.year_changed.connect(self.load_heatmap_data)
+        self.heatmap.day_clicked.connect(self.show_daily_sessions)
         
-        lbl_chart_icon = QLabel("\U0001F4C8") # Chart emoji
-        lbl_chart_icon.setStyleSheet("font-size: 48px;")
-        lbl_chart_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        chart_layout.addWidget(lbl_chart_icon)
-        
-        lbl_chart_title = QLabel("Study Heatmap")
-        lbl_chart_title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 18px; font-weight: bold;")
-        lbl_chart_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        chart_layout.addWidget(lbl_chart_title)
-        
-        lbl_chart_desc = QLabel("Coming soon in the Machine Learning Phase!")
-        lbl_chart_desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY};")
-        lbl_chart_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        chart_layout.addWidget(lbl_chart_desc)
-        
-        chart_card.addLayout(chart_layout)
-        bottom_layout.addWidget(chart_card, stretch=2)
+        bottom_layout.addWidget(self.heatmap, stretch=2)
         
         self.layout.addLayout(bottom_layout)
+
+    def load_heatmap_data(self, year: int):
+        data = self.analytics_service.get_yearly_heatmap_data(year)
+        self.heatmap.render_grid(year, data)
+
+    def show_daily_sessions(self, clicked_date):
+        from app.ui.components.dialogs import DailySessionsDialog
+        dialog = DailySessionsDialog(clicked_date, self)
+        dialog.exec()
 
     def load_data(self):
         """Fetch real data and update the UI."""
@@ -153,6 +147,9 @@ class DashboardPage(QWidget):
         
         # Recent Sessions
         recent = self.analytics_service.get_recent_sessions(limit=3)
+        
+        # Heatmap
+        self.load_heatmap_data(self.heatmap.current_year)
         
         # Clear existing
         while self.recent_list_layout.count():

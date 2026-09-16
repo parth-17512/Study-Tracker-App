@@ -70,5 +70,23 @@ class AnalyticsService(BaseService):
             all_sessions = self.session_repo.get_all_ordered_by_date(session)
             completed = [s for s in all_sessions if s.status == "COMPLETED"]
             
-            # Detach them by doing something safe or rely on expire_on_commit=False
             return completed[:limit]
+
+    def get_yearly_heatmap_data(self, year: int) -> Dict[datetime.date, int]:
+        """
+        Fetch all completed sessions for a given year and group them by date.
+        Returns a dictionary mapping date -> total study seconds.
+        """
+        start_of_year = datetime(year, 1, 1, tzinfo=timezone.utc)
+        # Handle leap years automatically by going to next year
+        end_of_year = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        
+        heatmap_data = {}
+        with self.db.get_session() as session:
+            sessions = self.session_repo.get_by_date_range(session, start_of_year, end_of_year)
+            for s in sessions:
+                if s.status == "COMPLETED" and s.start_time:
+                    d = s.start_time.date()
+                    heatmap_data[d] = heatmap_data.get(d, 0) + (s.duration_seconds or 0)
+                    
+        return heatmap_data

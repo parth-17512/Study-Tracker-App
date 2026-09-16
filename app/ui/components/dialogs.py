@@ -101,3 +101,62 @@ class EditSessionDialog(QDialog):
             "notes": self.notes_input.toPlainText(),
             "duration_seconds": total_sec
         }
+
+from app.services.analytics_service import AnalyticsService
+from PySide6.QtWidgets import QListWidget, QListWidgetItem
+class DailySessionsDialog(QDialog):
+    """Displays all sessions for a specific clicked date on the heatmap."""
+    
+    def __init__(self, target_date: date, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Sessions for {target_date.strftime('%B %d, %Y')}")
+        self.setFixedSize(400, 300)
+        self.setStyleSheet(f"background-color: {Theme.BACKGROUND_CARD}; color: {Theme.TEXT_PRIMARY};")
+        
+        self.layout = QVBoxLayout(self)
+        
+        self.list_widget = QListWidget()
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Theme.BACKGROUND_DARK};
+                border: 1px solid {Theme.BORDER_COLOR};
+                border-radius: 4px;
+            }}
+            QListWidget::item {{
+                padding: 8px;
+                border-bottom: 1px solid {Theme.BORDER_COLOR};
+            }}
+        """)
+        self.layout.addWidget(self.list_widget)
+        
+        # Close button
+        btn_close = PrimaryButton("Close")
+        btn_close.clicked.connect(self.accept)
+        self.layout.addWidget(btn_close)
+        
+        self.load_sessions(target_date)
+        
+    def load_sessions(self, target_date):
+        service = AnalyticsService()
+        
+        # Get start and end of that specific day
+        start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end = start + timedelta(days=1)
+        
+        with service.db.get_session() as session:
+            sessions = service.session_repo.get_by_date_range(session, start, end)
+            
+            if not sessions:
+                self.list_widget.addItem(QListWidgetItem("No sessions recorded for this day."))
+                return
+                
+            for s in sessions:
+                if s.status == "COMPLETED":
+                    d = s.duration_seconds or 0
+                    h = d // 3600
+                    m = (d % 3600) // 60
+                    dur_str = f"{h}h {m}m" if h > 0 else f"{m}m"
+                    topic = s.topic or "Focus Session"
+                    time_str = s.start_time.strftime("%H:%M") if s.start_time else ""
+                    
+                    self.list_widget.addItem(QListWidgetItem(f"[{time_str}] {topic} - {dur_str}"))

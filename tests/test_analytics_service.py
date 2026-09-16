@@ -96,3 +96,26 @@ def test_recent_sessions(db_session):
     assert len(recent) == 1
     # Order is descending by start_time, so the most recent is the one from today
     assert recent[0].duration_seconds == 3600
+
+def test_yearly_heatmap_data(db_session):
+    db = MockDB(db_session)
+    service = AnalyticsService(db=db)
+    
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    
+    data = service.get_yearly_heatmap_data(current_year)
+    
+    # Based on the earlier test data in `test_daily_total`, there is a session today and yesterday
+    today_date = now.date()
+    yesterday_date = (now - timedelta(days=1)).date()
+    
+    assert today_date in data
+    assert data[today_date] == 3600
+    
+    assert yesterday_date in data
+    assert data[yesterday_date] == 1800
+    
+    # Future dates should not be in there
+    tomorrow = (now + timedelta(days=1)).date()
+    assert data.get(tomorrow, 0) == 0
