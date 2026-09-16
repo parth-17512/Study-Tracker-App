@@ -171,9 +171,17 @@ class TimerPage(QWidget):
             self.time_display.setText(self.format_time(secs))
             if secs == 0 and engine.state == TimerState.RUNNING:
                 # Auto-complete and Notify
-                self.notification_service.notify_session_complete()
+                self.notification_service.play_alarm()
                 self.timer_service.complete()
                 self.sync_ui_state()
+                
+                # Show persistent alarm dialog
+                from app.ui.components.dialogs import AlarmDialog
+                dialog = AlarmDialog(self)
+                dialog.exec()
+                
+                # Stop alarm when dialog closes
+                self.notification_service.stop_alarm()
 
     def sync_ui_state(self):
         state = self.timer_service.engine.state

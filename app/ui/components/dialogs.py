@@ -144,20 +144,58 @@ class DailySessionsDialog(QDialog):
         start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
         end = start + timedelta(days=1)
         
-        with service.db.get_session() as session:
-            sessions = service.session_repo.get_by_date_range(session, start, end)
+        sessions = service.session_repo.get_by_date_range(start, end)
+        
+        if not sessions:
+            self.list_widget.addItem(QListWidgetItem("No sessions on this date."))
+            return
             
-            if not sessions:
-                self.list_widget.addItem(QListWidgetItem("No sessions recorded for this day."))
-                return
-                
-            for s in sessions:
-                if s.status == "COMPLETED":
-                    d = s.duration_seconds or 0
-                    h = d // 3600
-                    m = (d % 3600) // 60
-                    dur_str = f"{h}h {m}m" if h > 0 else f"{m}m"
-                    topic = s.topic or "Focus Session"
-                    time_str = s.start_time.strftime("%H:%M") if s.start_time else ""
-                    
-                    self.list_widget.addItem(QListWidgetItem(f"[{time_str}] {topic} - {dur_str}"))
+        for s in sessions:
+            dur = s.duration_seconds or 0
+            m = dur // 60
+            title = s.topic or "Uncategorized"
+            item_text = f"{s.start_time.strftime('%H:%M')} | {title} | {m} mins"
+            if s.notes:
+                item_text += f"\n- {s.notes}"
+            item = QListWidgetItem(item_text)
+            self.list_widget.addItem(item)
+
+class AlarmDialog(QDialog):
+    """An aggressive, always-on-top dialog for timer completion."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Session Complete!")
+        self.setFixedSize(400, 250)
+        
+        # Make it always on top
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
+        
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {Theme.BACKGROUND_CARD};
+                border: 2px solid {Theme.SUCCESS_COLOR};
+                border-radius: 8px;
+            }}
+        """)
+        
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
+        self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        lbl_title = QLabel("Time's Up!")
+        lbl_title.setStyleSheet(f"color: {Theme.SUCCESS_COLOR}; font-size: 36px; font-weight: bold;")
+        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout.addWidget(lbl_title)
+        
+        lbl_msg = QLabel("Your countdown has finished.\nGreat job!")
+        lbl_msg.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 18px;")
+        lbl_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout.addWidget(lbl_msg)
+        
+        self.layout.addSpacing(20)
+        
+        btn_ok = PrimaryButton("OK - Stop Alarm")
+        btn_ok.setMinimumHeight(50)
+        btn_ok.clicked.connect(self.accept)
+        self.layout.addWidget(btn_ok)
