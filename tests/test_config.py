@@ -38,3 +38,14 @@ def test_save_and_load(config_manager):
     config_manager.load()
     assert config_manager.get("sound_enabled") is False
     assert config_manager.get("theme") == "light"
+
+def test_corrupt_json_recovery(config_manager):
+    # Write garbage to the file
+    with open(config_manager.config_file, 'w', encoding='utf-8') as f:
+        f.write("{ invalid_json: true, ]")
+        
+    # Force reload
+    config_manager.load()
+    
+    # Should not crash, and should fall back to defaults (or whatever was in memory)
+    assert config_manager.get("sound_enabled") is not None
