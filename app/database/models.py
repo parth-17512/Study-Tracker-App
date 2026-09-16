@@ -53,3 +53,20 @@ class Setting(Base):
     key = Column(String(255), primary_key=True, index=True)
     value = Column(Text, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+class ActiveTimer(Base):
+    __tablename__ = "active_timer"
+    
+    id = Column(Integer, primary_key=True) # Will only ever have id=1
+    mode = Column(String(50), nullable=False) # 'stopwatch', 'countdown'
+    state = Column(String(50), nullable=False) # 'RUNNING', 'PAUSED'
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    target_end_time = Column(DateTime(timezone=True), nullable=True) # for countdown
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+    accumulated_elapsed_seconds = Column(Integer, default=0)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    topic = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+

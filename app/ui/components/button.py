@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QPushButton
-from PySide6.QtCore import Qt, QCursor
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QCursor
 from app.ui.theme import Theme
 
 class PrimaryButton(QPushButton):

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
-from PySide6.QtCore import Qt, Signal, QCursor
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QCursor
 from app.ui.theme import Theme
 
 class SidebarButton(QPushButton):

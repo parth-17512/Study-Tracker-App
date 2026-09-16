@@ -18,6 +18,12 @@ def main():
     # 2. Start Application
     app = QApplication(sys.argv)
     
+    # Check for active timers (Phase 2 foundation)
+    from app.services.timer_service import TimerService
+    timer_service = TimerService()
+    if timer_service.check_active_timer():
+        logger.info("Found an active abandoned timer in the database!")
+    
     # Apply global stylesheet
     app.setStyleSheet(GLOBAL_STYLESHEET)
     

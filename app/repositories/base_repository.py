@@ -28,7 +28,7 @@ class BaseRepository(Generic[T]):
         return db_obj
 
     def delete(self, session: Session, id: int) -> bool:
-        obj = session.query(self.model).get(id)
+        obj = session.get(self.model, id)
         if obj:
             session.delete(obj)
             session.flush()
