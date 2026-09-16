@@ -7,15 +7,17 @@ from app.ui.theme import Theme
 
 from app.ui.pages.timer import TimerPage
 from app.services.timer_service import TimerService
+from app.services.session_service import SessionService
 
 class MainWindow(QMainWindow):
-    """The main application window."""
+    """The main application window containing the sidebar and page stack."""
     
     def __init__(self, timer_service: TimerService):
         super().__init__()
         self.timer_service = timer_service
-        self.setWindowTitle("StudyTrack - Build a Better You")
-        self.setMinimumSize(1280, 720)
+        self.session_service = SessionService()
+        self.setWindowTitle("StudyTrack")
+        self.setMinimumSize(1000, 700)
         
         # Central Widget
         self.central_widget = QWidget()
