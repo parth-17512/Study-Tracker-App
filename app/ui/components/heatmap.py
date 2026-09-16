@@ -68,6 +68,7 @@ class HeatmapWidget(QWidget):
         super().__init__(parent)
         self.daily_goal_seconds = daily_goal_seconds
         self.current_year = date.today().year
+        self.setMinimumHeight(180)
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)

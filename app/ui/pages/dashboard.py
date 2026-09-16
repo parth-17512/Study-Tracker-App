@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QScrollArea
 from PySide6.QtCore import Qt
 from datetime import datetime, timezone
 from app.ui.theme import Theme
@@ -15,9 +15,23 @@ class DashboardPage(QWidget):
         # Hardcode a daily goal for now (e.g. 2 hours). Will move to Settings later.
         self.daily_goal_seconds = 2 * 3600 
         
-        self.layout = QVBoxLayout(self)
+        # Outer layout holds a scroll area
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea { background-color: transparent; border: none; }
+        """)
+        
+        scroll_content = QWidget()
+        self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)
+        
+        scroll_area.setWidget(scroll_content)
+        outer_layout.addWidget(scroll_area)
         
         self.setup_ui()
         self.load_data()
