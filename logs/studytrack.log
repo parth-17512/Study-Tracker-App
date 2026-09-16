@@ -185,3 +185,15 @@
 2026-09-16 17:25:49,479 [INFO] __main__: StudyTrack started successfully.
 2026-09-16 17:26:00,690 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent "HTTP/1.1 404 Not Found"
 2026-09-16 17:26:00,693 [ERROR] app.ai.providers.gemini: Gemini API Error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.6-flash for the latest features and improvements. We recommend you to use the Interactions API.', 'status': 'NOT_FOUND'}}
+2026-09-16 17:27:01,205 [INFO] app.config.settings: StudyTrack configuration initialized.
+2026-09-16 17:27:01,363 [INFO] app.config.settings: Initializing database schema...
+2026-09-16 17:27:01,371 [INFO] app.config.settings: Database schema initialized.
+2026-09-16 17:27:01,466 [INFO] app.config.config_manager: Settings loaded successfully.
+2026-09-16 17:27:03,236 [INFO] __main__: StudyTrack started successfully.
+2026-09-16 17:27:13,978 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent "HTTP/1.1 200 OK"
+2026-09-16 17:27:47,375 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent "HTTP/1.1 200 OK"
+2026-09-16 17:28:24,946 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent "HTTP/1.1 200 OK"
+2026-09-16 17:28:24,948 [INFO] app.ai.agent: AI Agent executing tool: get_streak with args: {}
+2026-09-16 17:28:26,576 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent "HTTP/1.1 200 OK"
+2026-09-16 17:29:41,534 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-09-16 17:29:41,536 [ERROR] app.ai.providers.gemini: Gemini API Error: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
