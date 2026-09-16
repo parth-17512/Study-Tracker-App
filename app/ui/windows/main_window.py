@@ -84,8 +84,13 @@ class MainWindow(QMainWindow):
         self.pages["analytics"] = AnalyticsPage()
         self.pages_stack.addWidget(self.pages["analytics"])
         
+        # Settings
+        from app.ui.pages.settings import SettingsPage
+        self.pages["settings"] = SettingsPage()
+        self.pages_stack.addWidget(self.pages["settings"])
+        
         # Placeholders for other pages
-        for page_name in ["goals", "subjects", "settings"]:
+        for page_name in ["goals", "subjects"]:
             placeholder = QWidget()
             layout = QVBoxLayout(placeholder)
             label = QLabel(f"{page_name.capitalize()} Page (Coming Soon)")

@@ -13,6 +13,7 @@ class Theme:
     
     SUCCESS_COLOR = "#10b981" # Green
     WARNING_COLOR = "#f59e0b" # Orange/yellow
+    DANGER_COLOR = "#ef4444" # Red
     
     TEXT_PRIMARY = "#ffffff"
     TEXT_SECONDARY = "#9ca3af"

@@ -11,9 +11,9 @@ class NotificationService:
     def __init__(self, parent_widget=None):
         self.parent = parent_widget
         
-        # Config (Hardcoded for now, will be moved to Settings in Phase 11)
-        self.sound_enabled = True
-        self.notifications_enabled = True
+        # Use ConfigManager
+        from app.config.config_manager import ConfigManager
+        self.config = ConfigManager()
         
         self.is_windows = platform.system() == 'Windows'
         self._alarm_running = False
@@ -25,7 +25,7 @@ class NotificationService:
 
     def play_alarm(self):
         """Plays a looping alarm sound."""
-        if not self.sound_enabled:
+        if not self.config.get("sound_enabled", True):
             return
             
         try:
