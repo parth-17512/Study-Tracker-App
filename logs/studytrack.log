@@ -208,3 +208,8 @@
 2026-09-16 17:32:37,870 [WARNING] app.ai.providers.gemini: Model gemini-3.6-flash is unavailable. Trying fallback.
 2026-09-16 17:32:39,612 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent "HTTP/1.1 404 Not Found"
 2026-09-16 17:32:39,614 [ERROR] app.ai.providers.gemini: Gemini API Error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+2026-09-16 17:36:58,717 [INFO] app.config.settings: StudyTrack configuration initialized.
+2026-09-16 17:36:58,847 [INFO] app.config.settings: Initializing database schema...
+2026-09-16 17:36:58,851 [INFO] app.config.settings: Database schema initialized.
+2026-09-16 17:36:58,909 [INFO] app.config.config_manager: Settings loaded successfully.
+2026-09-16 17:37:00,745 [INFO] __main__: StudyTrack started successfully.

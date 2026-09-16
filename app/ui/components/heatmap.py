@@ -11,15 +11,16 @@ class DayCell(QFrame):
     def __init__(self, day_date: date, parent=None):
         super().__init__(parent)
         self.day_date = day_date
-        self.setFixedSize(12, 12)
+        self.setFixedSize(14, 14)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        # Default empty state
-        self.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; border-radius: 2px;")
+        # Default empty state — visible dark cell (like GitHub's empty squares)
+        self.setStyleSheet("background-color: #161b22; border-radius: 2px;")
         
     def set_intensity(self, duration_seconds: int, daily_goal_seconds: int):
-        """Sets the background color based on study intensity."""
+        """Sets the background color based on study intensity using GitHub green palette."""
         if duration_seconds == 0:
-            self.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; border-radius: 2px;")
+            self.setStyleSheet("background-color: #161b22; border-radius: 2px;")
+            self.setToolTip(f"{self.day_date.strftime('%b %d, %Y')}: No activity")
             return
             
         # Avoid division by zero
@@ -28,22 +29,17 @@ class DayCell(QFrame):
             
         ratio = duration_seconds / daily_goal_seconds
         
-        # We will interpolate between a very dark green and a bright green
-        # Primary accent is purple in our theme, but standard GitHub is green. 
-        # Let's use a nice purple/accent scale to match the theme.
-        # Theme.PRIMARY_ACCENT is "#7B61FF"
-        
-        # Color mapping (Simplified)
+        # GitHub-style green color scale
         if ratio < 0.25:
-            color = "#3A2A85" # Very dark purple
+            color = "#0e4429"  # Level 1 — darkest green
         elif ratio < 0.50:
-            color = "#523BA8" # Dark purple
+            color = "#006d32"  # Level 2
         elif ratio < 0.75:
-            color = "#6347CC" # Medium purple
+            color = "#26a641"  # Level 3
         elif ratio < 1.0:
-            color = Theme.PRIMARY_ACCENT # Standard
+            color = "#39d353"  # Level 4 — bright green
         else:
-            color = Theme.SUCCESS_COLOR # Overachieved (Green)
+            color = "#39d353"  # Overachieved — same bright green
             
         self.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
         
@@ -70,9 +66,18 @@ class HeatmapWidget(QWidget):
         self.current_year = date.today().year
         self.setMinimumHeight(180)
         
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(Theme.SPACING_REGULAR)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(12, 12, 12, 12)
+        self.main_layout.setSpacing(Theme.SPACING_SMALL)
+        
+        # Give the whole widget a card-like background
+        self.setStyleSheet(f"""
+            HeatmapWidget {{
+                background-color: {Theme.BACKGROUND_CARD};
+                border-radius: 8px;
+                border: 1px solid {Theme.BORDER_COLOR};
+            }}
+        """)
         
         self.setup_ui()
         
@@ -81,7 +86,7 @@ class HeatmapWidget(QWidget):
         header_layout = QHBoxLayout()
         
         title = QLabel("Study Activity")
-        title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-weight: bold; font-size: 16px;")
+        title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-weight: bold; font-size: 16px; background: transparent;")
         header_layout.addWidget(title)
         
         header_layout.addStretch()
@@ -103,26 +108,45 @@ class HeatmapWidget(QWidget):
         self.year_combo.currentIndexChanged.connect(self.on_year_combo_changed)
         header_layout.addWidget(self.year_combo)
         
-        self.layout.addLayout(header_layout)
+        self.main_layout.addLayout(header_layout)
         
         # Grid Layout for the Heatmap
-        # We need a scroll area or just let it resize. A 12x12 block * 53 weeks = ~636px wide minimum.
-        # It should fit fine in 1280x720 window.
         self.grid_widget = QWidget()
+        self.grid_widget.setStyleSheet("background: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
-        self.grid_layout.setSpacing(4)
+        self.grid_layout.setSpacing(3)
         
         # Weekday Labels
-        days = ["Mon", "Wed", "Fri"]
-        day_rows = [0, 2, 4] # Render on these rows (Mon=0, Tue=1, Wed=2...)
-        for d, r in zip(days, day_rows):
-            lbl = QLabel(d)
-            lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px;")
-            self.grid_layout.addWidget(lbl, r, 0)
+        days = ["Mon", "", "Wed", "", "Fri", "", ""]
+        for r, d in enumerate(days):
+            if d:
+                lbl = QLabel(d)
+                lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
+                self.grid_layout.addWidget(lbl, r, 0)
             
-        self.layout.addWidget(self.grid_widget)
-        self.layout.addStretch()
+        self.main_layout.addWidget(self.grid_widget)
+        
+        # Legend
+        legend_layout = QHBoxLayout()
+        legend_layout.addStretch()
+        
+        less_lbl = QLabel("Less")
+        less_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
+        legend_layout.addWidget(less_lbl)
+        
+        legend_colors = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"]
+        for color in legend_colors:
+            swatch = QFrame()
+            swatch.setFixedSize(12, 12)
+            swatch.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
+            legend_layout.addWidget(swatch)
+            
+        more_lbl = QLabel("More")
+        more_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
+        legend_layout.addWidget(more_lbl)
+        
+        self.main_layout.addLayout(legend_layout)
         
         # We will generate the grid dynamically when data is loaded
         self.cells = {} # mapping date -> DayCell
@@ -173,3 +197,4 @@ class HeatmapWidget(QWidget):
             if row > 6:
                 row = 0
                 col += 1
+
