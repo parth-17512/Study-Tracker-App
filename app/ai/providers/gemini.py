@@ -13,7 +13,7 @@ class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str):
         self.api_key = api_key
         # We will try the newer model, and fallback if it's unavailable
-        self.models = ["gemini-3.6-flash", "gemini-1.5-flash"]
+        self.models = ["gemini-3.6-flash", "gemini-3.5-flash"]
         
     def generate_response(self, prompt: str, tools_schema: List[Dict[str, Any]], execute_tool_callback: callable) -> str:
         if not self.api_key:
