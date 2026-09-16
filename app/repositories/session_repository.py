@@ -19,3 +19,36 @@ class SessionRepository(BaseRepository[StudySession]):
             StudySession.start_time >= start_date,
             StudySession.start_time <= end_date
         ).order_by(desc(StudySession.start_time)).all()
+
+    def search_sessions(self, session: Session, text_query: str = None, 
+                        topic: str = None, status: str = None, 
+                        order_by: str = "newest") -> List[StudySession]:
+        from sqlalchemy import or_, desc, asc
+        
+        query = session.query(StudySession)
+        
+        if text_query:
+            wildcard_query = f"%{text_query}%"
+            query = query.filter(
+                or_(
+                    StudySession.topic.ilike(wildcard_query),
+                    StudySession.notes.ilike(wildcard_query)
+                )
+            )
+            
+        if topic and topic != "All":
+            query = query.filter(StudySession.topic == topic)
+            
+        if status and status != "All":
+            query = query.filter(StudySession.status == status)
+            
+        if order_by == "newest":
+            query = query.order_by(desc(StudySession.start_time))
+        elif order_by == "oldest":
+            query = query.order_by(asc(StudySession.start_time))
+        elif order_by == "longest":
+            query = query.order_by(desc(StudySession.duration_seconds))
+        elif order_by == "shortest":
+            query = query.order_by(asc(StudySession.duration_seconds))
+            
+        return query.all()

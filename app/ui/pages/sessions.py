@@ -1,4 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QPushButton, QTableWidget, QTableWidgetItem, 
+    QHeaderView, QMessageBox, QLineEdit, QComboBox
+)
 from PySide6.QtCore import Qt
 from app.ui.theme import Theme
 from app.ui.components.card import Card
@@ -47,43 +51,69 @@ class SessionsPage(QWidget):
         
         card_layout.addLayout(actions_layout)
         
+        # --- Filter Bar ---
+        filter_layout = QHBoxLayout()
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search sessions...")
+        self.search_input.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 4px;")
+        self.search_input.textChanged.connect(self.load_data)
+        filter_layout.addWidget(self.search_input)
+        
+        self.status_combo = QComboBox()
+        self.status_combo.addItems(["All", "COMPLETED", "CANCELLED", "RUNNING", "PAUSED"])
+        self.status_combo.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY};")
+        self.status_combo.currentTextChanged.connect(self.load_data)
+        filter_layout.addWidget(self.status_combo)
+        
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["newest", "oldest", "longest", "shortest"])
+        self.sort_combo.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY};")
+        self.sort_combo.currentTextChanged.connect(self.load_data)
+        filter_layout.addWidget(self.sort_combo)
+        
+        card_layout.addLayout(filter_layout)
+        # --- End Filter Bar ---
+        
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Date", "Duration", "Type", "Status", "Notes"])
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(["Date", "Topic", "Duration", "Status"])
         
-        # Styling the table for dark mode
+        # Styling the table
         self.table.setStyleSheet(f"""
             QTableWidget {{
-                background-color: {Theme.BACKGROUND_DARK};
+                background-color: {Theme.BACKGROUND_CARD};
                 color: {Theme.TEXT_PRIMARY};
                 gridline-color: {Theme.BORDER_COLOR};
                 border: 1px solid {Theme.BORDER_COLOR};
-                border-radius: 6px;
+                border-radius: 4px;
             }}
             QHeaderView::section {{
-                background-color: {Theme.BACKGROUND_CARD};
+                background-color: {Theme.BACKGROUND_DARK};
                 color: {Theme.TEXT_SECONDARY};
-                padding: 4px;
-                border: 1px solid {Theme.BORDER_COLOR};
+                padding: 8px;
+                border: none;
                 font-weight: bold;
             }}
+            QTableWidget::item {{
+                padding: 8px;
+                border-bottom: 1px solid {Theme.BORDER_COLOR};
+            }}
             QTableWidget::item:selected {{
-                background-color: {Theme.PRIMARY_ACCENT}44;
+                background-color: {Theme.PRIMARY_ACCENT};
             }}
         """)
         
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents) # ID
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents) # Date
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents) # Duration
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents) # Type
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents) # Status
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch) # Notes
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers) # Make it read-only
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
         self.table.doubleClicked.connect(self.edit_session)
@@ -94,7 +124,16 @@ class SessionsPage(QWidget):
         self.layout.addWidget(card)
 
     def load_data(self):
-        sessions = self.session_service.get_all_sessions()
+        # Read filters
+        text_query = self.search_input.text().strip() or None
+        status = self.status_combo.currentText()
+        order_by = self.sort_combo.currentText()
+        
+        sessions = self.session_service.search_sessions(
+            text_query=text_query,
+            status=status,
+            order_by=order_by
+        )
         
         self.table.setRowCount(0) # Clear
         for row, session in enumerate(sessions):
@@ -110,12 +149,16 @@ class SessionsPage(QWidget):
             s = d % 60
             dur_str = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s"
             
-            self.table.setItem(row, 0, QTableWidgetItem(str(session.id)))
-            self.table.setItem(row, 1, QTableWidgetItem(date_str))
+            # Topic
+            topic_str = session.topic or "Uncategorized"
+            
+            item_date = QTableWidgetItem(date_str)
+            item_date.setData(Qt.ItemDataRole.UserRole, session.id) # Store ID silently
+            
+            self.table.setItem(row, 0, item_date)
+            self.table.setItem(row, 1, QTableWidgetItem(topic_str))
             self.table.setItem(row, 2, QTableWidgetItem(dur_str))
-            self.table.setItem(row, 3, QTableWidgetItem(session.session_type or ""))
-            self.table.setItem(row, 4, QTableWidgetItem(session.status or ""))
-            self.table.setItem(row, 5, QTableWidgetItem(session.notes or ""))
+            self.table.setItem(row, 3, QTableWidgetItem(session.status or ""))
 
     def on_selection_changed(self):
         has_selection = len(self.table.selectedItems()) > 0
@@ -123,12 +166,13 @@ class SessionsPage(QWidget):
         self.btn_delete.setEnabled(has_selection)
 
     def get_selected_session_id(self):
-        rows = self.table.selectionModel().selectedRows()
-        if not rows:
+        selected = self.table.selectedItems()
+        if not selected:
             return None
-        item = self.table.item(rows[0].row(), 0)
-        if item:
-            return int(item.text())
+        # ID is stored in the UserRole of column 0
+        row = selected[0].row()
+        item = self.table.item(row, 0)
+        return item.data(Qt.ItemDataRole.UserRole)
         return None
 
     def edit_session(self):

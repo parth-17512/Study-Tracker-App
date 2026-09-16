@@ -41,3 +41,13 @@ class SessionService(BaseService):
         """Delete a study session."""
         with self.db.get_session() as session:
             return self.repository.delete(session, session_id)
+
+    def search_sessions(self, text_query: str = None, topic: str = None, status: str = None, order_by: str = "newest") -> List[StudySession]:
+        with self.db.get_session() as session:
+            return self.repository.search_sessions(
+                session, 
+                text_query=text_query, 
+                topic=topic, 
+                status=status, 
+                order_by=order_by
+            )

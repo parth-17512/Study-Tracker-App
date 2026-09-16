@@ -104,3 +104,28 @@ class MainWindow(QMainWindow):
             # Auto-refresh data if the page supports it
             if hasattr(target_page, 'load_data'):
                 target_page.load_data()
+            # Bind Ctrl+K for Global Search
+        from PySide6.QtGui import QShortcut, QKeySequence
+        self.search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.search_shortcut.activated.connect(self.show_search_dialog)
+
+    def show_search_dialog(self):
+        from app.ui.components.search_dialog import SearchDialog
+        from app.ui.components.dialogs import EditSessionDialog
+        
+        dialog = SearchDialog(self.session_service, self)
+        
+        def on_session_selected(session_id):
+            session = self.session_service.get_session(session_id)
+            if session:
+                edit_dialog = EditSessionDialog(session, self)
+                if edit_dialog.exec():
+                    data = edit_dialog.get_data()
+                    self.session_service.update_session(session_id, **data)
+                    # Refresh pages if needed
+                    self.navigate_to(self.sidebar.current_nav)
+                    
+        dialog.session_selected.connect(on_session_selected)
+        dialog.show()
+        # Ensure it receives focus
+        dialog.search_input.setFocus()
