@@ -65,8 +65,13 @@ class MainWindow(QMainWindow):
         self.pages["timer"] = TimerPage(self.timer_service)
         self.pages_stack.addWidget(self.pages["timer"])
         
+        # Sessions
+        from app.ui.pages.sessions import SessionsPage
+        self.pages["sessions"] = SessionsPage()
+        self.pages_stack.addWidget(self.pages["sessions"])
+        
         # Placeholders for other pages
-        for page_name in ["sessions", "goals", "analytics", "calendar", "subjects", "settings"]:
+        for page_name in ["goals", "analytics", "calendar", "subjects", "settings"]:
             placeholder = QWidget()
             layout = QVBoxLayout(placeholder)
             label = QLabel(f"{page_name.capitalize()} Page (Coming Soon)")
@@ -82,5 +87,10 @@ class MainWindow(QMainWindow):
     def navigate_to(self, page_name: str):
         """Navigate to a specific page."""
         if page_name in self.pages:
-            self.pages_stack.setCurrentWidget(self.pages[page_name])
+            target_page = self.pages[page_name]
+            self.pages_stack.setCurrentWidget(target_page)
             self.topbar.set_title(page_name.capitalize())
+            
+            # Auto-refresh data if the page supports it
+            if hasattr(target_page, 'load_data'):
+                target_page.load_data()
