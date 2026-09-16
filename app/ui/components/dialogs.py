@@ -144,7 +144,8 @@ class DailySessionsDialog(QDialog):
         start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
         end = start + timedelta(days=1)
         
-        sessions = service.session_repo.get_by_date_range(start, end)
+        with service.db.get_session() as db_session:
+            sessions = service.session_repo.get_by_date_range(db_session, start, end)
         
         if not sessions:
             self.list_widget.addItem(QListWidgetItem("No sessions on this date."))

@@ -59,21 +59,77 @@ class TimerPage(QWidget):
         self.duration_input_widget = QWidget()
         duration_layout = QHBoxLayout(self.duration_input_widget)
         duration_layout.setContentsMargins(0, 0, 0, 0)
+        duration_layout.setSpacing(12)
+        
+        spinbox_style = f"""
+            QSpinBox {{
+                background-color: {Theme.BACKGROUND_CARD};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER_COLOR};
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 20px;
+                font-weight: bold;
+                min-width: 80px;
+            }}
+            QSpinBox::up-button {{
+                subcontrol-origin: border;
+                subcontrol-position: top right;
+                width: 24px;
+                border-left: 1px solid {Theme.BORDER_COLOR};
+                background-color: {Theme.BACKGROUND_CARD_HOVER};
+                border-top-right-radius: 6px;
+            }}
+            QSpinBox::down-button {{
+                subcontrol-origin: border;
+                subcontrol-position: bottom right;
+                width: 24px;
+                border-left: 1px solid {Theme.BORDER_COLOR};
+                background-color: {Theme.BACKGROUND_CARD_HOVER};
+                border-bottom-right-radius: 6px;
+            }}
+            QSpinBox::up-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-bottom: 6px solid {Theme.TEXT_PRIMARY};
+                width: 0; height: 0;
+            }}
+            QSpinBox::down-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid {Theme.TEXT_PRIMARY};
+                width: 0; height: 0;
+            }}
+        """
+        
+        lbl_hours = QLabel("Hours")
+        lbl_hours.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 14px; font-weight: bold;")
         
         self.spin_hours = QSpinBox()
         self.spin_hours.setRange(0, 23)
-        self.spin_hours.setSuffix(" h")
+        self.spin_hours.setStyleSheet(spinbox_style)
+        self.spin_hours.setButtonSymbols(QSpinBox.UpDownArrows)
+        
+        lbl_mins = QLabel("Minutes")
+        lbl_mins.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 14px; font-weight: bold;")
         
         self.spin_mins = QSpinBox()
         self.spin_mins.setRange(0, 59)
-        self.spin_mins.setSuffix(" m")
         self.spin_mins.setValue(25) # Default pomodoro
+        self.spin_mins.setStyleSheet(spinbox_style)
+        self.spin_mins.setButtonSymbols(QSpinBox.UpDownArrows)
         
         self.spin_hours.valueChanged.connect(self.update_display)
         self.spin_mins.valueChanged.connect(self.update_display)
         
+        duration_layout.addStretch()
+        duration_layout.addWidget(lbl_hours)
         duration_layout.addWidget(self.spin_hours)
+        duration_layout.addWidget(lbl_mins)
         duration_layout.addWidget(self.spin_mins)
+        duration_layout.addStretch()
         self.duration_input_widget.hide() # Default is stopwatch
         
         timer_layout.addWidget(self.duration_input_widget, alignment=Qt.AlignmentFlag.AlignCenter)
