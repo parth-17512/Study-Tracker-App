@@ -13,7 +13,12 @@ class Database:
             connect_args={"check_same_thread": False}, # Required for SQLite
             echo=False # Set to True for SQL debugging
         )
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False, 
+            autoflush=False, 
+            bind=self.engine, 
+            expire_on_commit=False
+        )
     
     def init_db(self):
         """Creates all tables in the database."""
