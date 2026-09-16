@@ -61,28 +61,55 @@ StudyTrack is built on the philosophy of **"Reliability before complexity"**.
 - PySide6 (UI Framework)
 - SQLAlchemy (ORM)
 
-### Development Setup
-
+### Development
+How to run the app in development mode from source:
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/parth-17512/Study-Tracker-Agent.git
    cd Study-Tracker-Agent
    ```
-2. **Create a virtual environment**:
+2. **Create and activate virtual environment**:
    ```bash
    python -m venv venv
+   .\venv\Scripts\activate
    ```
-3. **Activate the environment**:
-   - Windows: `.\venv\Scripts\activate`
-   - Linux/Mac: `source venv/bin/activate`
-4. **Install dependencies**:
+3. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-5. **Run the application**:
+4. **Run the application**:
    ```bash
    python main.py
    ```
+
+### Build (Creating an Executable)
+You can package StudyTrack into a standalone Windows `.exe`.
+```bash
+python build.py
+```
+This script automates PyInstaller and produces:
+- A directory build (`dist/StudyTrack/StudyTrack.exe`)
+- A single-file executable (`dist/StudyTrack.exe`)
+
+---
+
+## 🗄️ User Data & Backups
+
+StudyTrack is built around **privacy and data safety**. Your persistent user data is **never** bundled inside the temporary `.exe` directory.
+
+All persistent data is stored securely in your Windows profile:
+`%LOCALAPPDATA%\StudyTrack\`
+
+This directory contains:
+- `studytrack.db` (Your entire study history and raw notes)
+- `logs\` (Application diagnostic logs)
+- `exports\` (Any exported data)
+- `settings.json` (Your application preferences)
+
+### Backups & Updates
+**Updating the app is safe!** Because your data lives in `%LOCALAPPDATA%`, you can download a new version of `StudyTrack.exe`, replace the old one, and launch it without losing any of your study streaks or notes.
+
+To manually back up your data, simply copy the `%LOCALAPPDATA%\StudyTrack\` folder to a secure location (like a USB drive or cloud storage).
 
 ---
 

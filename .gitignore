@@ -32,3 +32,8 @@ user_data/
 
 # Logs
 logs/
+
+# Build and dist
+build/
+dist/
+*.spec
