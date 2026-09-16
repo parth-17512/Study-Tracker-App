@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.services.analytics_service import AnalyticsService
 
 class AITools:
@@ -9,38 +9,56 @@ class AITools:
         
     def get_today_stats(self) -> dict:
         """Returns the user's total study duration and session count for today."""
-        today = datetime.now(timezone.utc).date()
-        sessions = self.analytics.get_sessions_for_date(today)
+        now = datetime.now(timezone.utc)
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
         
-        total_duration = sum(s.duration_seconds or 0 for s in sessions if s.status == "COMPLETED")
+        with self.analytics.db.get_session() as session:
+            sessions = self.analytics.session_repo.get_by_date_range(session, start_of_day, end_of_day)
+            
+        completed = [s for s in sessions if s.status == "COMPLETED"]
+        total_duration = sum(s.duration_seconds or 0 for s in completed)
+        
         return {
-            "date": today.isoformat(),
-            "session_count": len([s for s in sessions if s.status == "COMPLETED"]),
+            "date": start_of_day.date().isoformat(),
+            "session_count": len(completed),
             "total_study_minutes": total_duration // 60
         }
         
     def get_week_stats(self) -> dict:
-        """Returns the user's total study duration for the current week."""
-        # Simple placeholder implementation relying on analytics service
-        summary = self.analytics.get_weekly_summary()
+        """Returns the user's total study duration for the trailing 7 days."""
+        now = datetime.now(timezone.utc)
+        start_of_week = now - timedelta(days=7)
+        
+        with self.analytics.db.get_session() as session:
+            sessions = self.analytics.session_repo.get_by_date_range(session, start_of_week, now)
+            
+        completed = [s for s in sessions if s.status == "COMPLETED"]
+        total_duration = sum(s.duration_seconds or 0 for s in completed)
+        
         return {
-            "total_study_minutes": summary.get("total_duration_seconds", 0) // 60,
-            "best_day": summary.get("best_day_str", "Unknown")
+            "total_study_minutes": total_duration // 60,
+            "session_count_this_week": len(completed)
         }
         
     def get_month_stats(self) -> dict:
-        """Returns a summarized version of the user's monthly stats."""
-        # Reuse weekly summary logic for simplicity in the foundation
-        summary = self.analytics.get_weekly_summary()
+        """Returns a summarized version of the user's trailing 30 days."""
+        now = datetime.now(timezone.utc)
+        start_of_month = now - timedelta(days=30)
+        
+        with self.analytics.db.get_session() as session:
+            sessions = self.analytics.session_repo.get_by_date_range(session, start_of_month, now)
+            
+        completed = [s for s in sessions if s.status == "COMPLETED"]
+        total_duration = sum(s.duration_seconds or 0 for s in completed)
         return {
-            "status": "Monthly detailed stats are functionally similar to weekly for this prototype",
-            "total_study_minutes_approx": (summary.get("total_duration_seconds", 0) // 60) * 4 
+            "total_study_minutes_approx": total_duration // 60 
         }
         
     def get_streak(self) -> dict:
         """Returns the user's current consecutive daily study streak."""
         return {
-            "current_streak_days": self.analytics.get_current_streak()
+            "current_streak_days": self.analytics.calculate_current_streak(datetime.now(timezone.utc))
         }
         
     def get_recent_sessions(self, limit: int = 5) -> list:
@@ -48,12 +66,11 @@ class AITools:
         recent = self.analytics.get_recent_sessions(limit)
         results = []
         for s in recent:
-            if s.status == "COMPLETED":
-                results.append({
-                    "topic": s.topic or "Uncategorized",
-                    "duration_minutes": (s.duration_seconds or 0) // 60,
-                    "date": s.start_time.strftime("%Y-%m-%d") if s.start_time else "Unknown"
-                })
+            results.append({
+                "topic": s.topic or "Uncategorized",
+                "duration_minutes": (s.duration_seconds or 0) // 60,
+                "date": s.start_time.strftime("%Y-%m-%d") if s.start_time else "Unknown"
+            })
         return results
         
     def get_subject_stats(self) -> dict:

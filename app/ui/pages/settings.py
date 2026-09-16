@@ -26,7 +26,9 @@ class SettingsPage(QWidget):
         lbl_title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 32px; font-weight: bold;")
         self.layout.addWidget(lbl_title)
         
-        self.setup_preferences_card()
+        prefs_card = self.setup_preferences_card()
+        self.layout.addWidget(prefs_card)
+        
         data_card = self.setup_data_card()
         self.layout.addWidget(data_card)
         
