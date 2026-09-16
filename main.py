@@ -1,22 +1,31 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel
-from PySide6.QtCore import Qt
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("StudyTrack")
-        self.setMinimumSize(1280, 720)
-        
-        # Temporary placeholder until Phase 1 UI is implemented
-        label = QLabel("StudyTrack - Build a Better You")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setCentralWidget(label)
+import logging
+from PySide6.QtWidgets import QApplication
+from app.ui.windows.main_window import MainWindow
+from app.ui.theme import GLOBAL_STYLESHEET
+from app.database.database import db
 
 def main():
+    logger = logging.getLogger(__name__)
+    
+    # 1. Initialize Database
+    try:
+        db.init_db()
+    except Exception as e:
+        logger.critical(f"Failed to initialize database: {e}")
+        sys.exit(1)
+        
+    # 2. Start Application
     app = QApplication(sys.argv)
+    
+    # Apply global stylesheet
+    app.setStyleSheet(GLOBAL_STYLESHEET)
+    
+    # Launch main window
     window = MainWindow()
     window.show()
+    
+    logger.info("StudyTrack started successfully.")
     sys.exit(app.exec())
 
 if __name__ == "__main__":
