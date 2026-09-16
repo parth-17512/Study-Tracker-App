@@ -90,3 +90,15 @@
 2026-09-16 15:25:01,253 [INFO] app.config.settings: Initializing database schema...
 2026-09-16 15:25:01,262 [INFO] app.config.settings: Database schema initialized.
 2026-09-16 15:25:03,594 [INFO] __main__: StudyTrack started successfully.
+2026-09-16 15:25:46,822 [INFO] app.config.settings: StudyTrack configuration initialized.
+2026-09-16 15:25:46,948 [INFO] app.config.settings: Initializing database schema...
+2026-09-16 15:25:46,954 [INFO] app.config.settings: Database schema initialized.
+2026-09-16 15:25:48,651 [INFO] __main__: StudyTrack started successfully.
+2026-09-16 15:29:34,453 [INFO] app.config.settings: StudyTrack configuration initialized.
+2026-09-16 15:29:34,579 [INFO] app.config.settings: Initializing database schema...
+2026-09-16 15:29:34,588 [INFO] app.config.settings: Database schema initialized.
+2026-09-16 15:29:36,338 [INFO] __main__: StudyTrack started successfully.
+2026-09-16 15:33:34,981 [INFO] app.config.settings: StudyTrack configuration initialized.
+2026-09-16 15:33:35,084 [INFO] app.config.settings: Initializing database schema...
+2026-09-16 15:33:35,091 [INFO] app.config.settings: Database schema initialized.
+2026-09-16 15:33:36,793 [INFO] __main__: StudyTrack started successfully.

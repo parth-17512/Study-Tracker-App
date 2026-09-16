@@ -154,7 +154,9 @@ class DailySessionsDialog(QDialog):
             dur = s.duration_seconds or 0
             m = dur // 60
             title = s.topic or "Uncategorized"
-            item_text = f"{s.start_time.strftime('%H:%M')} | {title} | {m} mins"
+            from app.utils.time_utils import to_local_time
+            local_start = to_local_time(s.start_time)
+            item_text = f"{local_start.strftime('%H:%M')} | {title} | {m} mins"
             if s.notes:
                 item_text += f"\n- {s.notes}"
             item = QListWidgetItem(item_text)

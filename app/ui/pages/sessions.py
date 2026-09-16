@@ -140,7 +140,9 @@ class SessionsPage(QWidget):
             self.table.insertRow(row)
             
             # Format date
-            date_str = session.start_time.strftime("%Y-%m-%d %H:%M") if session.start_time else "Unknown"
+            from app.utils.time_utils import to_local_time
+            local_start = to_local_time(session.start_time)
+            date_str = local_start.strftime("%Y-%m-%d %H:%M") if local_start else "Unknown"
             
             # Format duration
             d = session.duration_seconds or 0

@@ -163,7 +163,9 @@ class DashboardPage(QWidget):
             self.recent_list_layout.addWidget(lbl_empty)
         else:
             for session in recent:
-                date_str = session.start_time.strftime("%b %d, %H:%M") if session.start_time else ""
+                from app.utils.time_utils import to_local_time
+                local_start = to_local_time(session.start_time)
+                date_str = local_start.strftime("%b %d, %H:%M") if local_start else ""
                 dur = session.duration_seconds or 0
                 dur_str = f"{dur//3600}h {(dur%3600)//60}m" if dur >= 3600 else f"{dur//60}m"
                 topic = session.topic or "Focus Session"

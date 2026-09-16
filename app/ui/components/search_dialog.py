@@ -78,7 +78,9 @@ class SearchDialog(QDialog):
         
         for s in self.results:
             topic = s.topic or "Uncategorized"
-            date_str = s.start_time.strftime("%b %d, %Y") if s.start_time else "Unknown Date"
+            from app.utils.time_utils import to_local_time
+            local_start = to_local_time(s.start_time)
+            date_str = local_start.strftime("%b %d, %Y") if local_start else "Unknown Date"
             
             # Preview notes
             notes = s.notes or ""
