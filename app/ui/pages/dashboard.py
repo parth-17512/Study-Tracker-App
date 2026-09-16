@@ -21,11 +21,14 @@ class DashboardPage(QWidget):
         
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setStyleSheet("""
             QScrollArea { background-color: transparent; border: none; }
         """)
         
         scroll_content = QWidget()
+        scroll_content.setMinimumWidth(900)
         self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)

@@ -37,9 +37,7 @@ class Sidebar(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumWidth(180)
-        self.setMaximumWidth(260)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.setFixedWidth(220)
         
         self.setStyleSheet(f"""
             Sidebar {{

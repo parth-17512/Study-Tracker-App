@@ -111,17 +111,6 @@ class HeatmapWidget(QWidget):
         
         self.main_layout.addLayout(header_layout)
         
-        # Horizontal scroll area for the grid so it scrolls on small windows
-        self.grid_scroll = QScrollArea()
-        self.grid_scroll.setWidgetResizable(False)
-        self.grid_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.grid_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.grid_scroll.setStyleSheet("""
-            QScrollArea { background: transparent; border: none; }
-            QScrollBar:horizontal { height: 6px; background: transparent; }
-            QScrollBar::handle:horizontal { background: #333; border-radius: 3px; }
-        """)
-        
         # Grid Layout for the Heatmap
         self.grid_widget = QWidget()
         self.grid_widget.setStyleSheet("background: transparent;")
@@ -137,8 +126,7 @@ class HeatmapWidget(QWidget):
                 lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
                 self.grid_layout.addWidget(lbl, r, 0)
         
-        self.grid_scroll.setWidget(self.grid_widget)
-        self.main_layout.addWidget(self.grid_scroll, stretch=1)
+        self.main_layout.addWidget(self.grid_widget, stretch=1)
         
         # Legend
         legend_layout = QHBoxLayout()
