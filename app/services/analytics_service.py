@@ -90,3 +90,26 @@ class AnalyticsService(BaseService):
                     heatmap_data[d] = heatmap_data.get(d, 0) + (s.duration_seconds or 0)
                     
         return heatmap_data
+
+    def get_monthly_study_data(self, year: int, month: int) -> Dict[datetime.date, int]:
+        """
+        Fetch all completed sessions for a given month and group them by date.
+        Returns a dictionary mapping date -> total study seconds.
+        """
+        start_of_month = datetime(year, month, 1, tzinfo=timezone.utc)
+        
+        # Calculate start of next month
+        if month == 12:
+            end_of_month = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        else:
+            end_of_month = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+            
+        monthly_data = {}
+        with self.db.get_session() as session:
+            sessions = self.session_repo.get_by_date_range(session, start_of_month, end_of_month)
+            for s in sessions:
+                if s.status == "COMPLETED" and s.start_time:
+                    d = s.start_time.date()
+                    monthly_data[d] = monthly_data.get(d, 0) + (s.duration_seconds or 0)
+                    
+        return monthly_data

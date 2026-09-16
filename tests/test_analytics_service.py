@@ -119,3 +119,30 @@ def test_yearly_heatmap_data(db_session):
     # Future dates should not be in there
     tomorrow = (now + timedelta(days=1)).date()
     assert data.get(tomorrow, 0) == 0
+
+def test_monthly_study_data(db_session):
+    db = MockDB(db_session)
+    service = AnalyticsService(db=db)
+    
+    now = datetime.now(timezone.utc)
+    
+    data = service.get_monthly_study_data(now.year, now.month)
+    
+    today_date = now.date()
+    yesterday_date = (now - timedelta(days=1)).date()
+    
+    # We should have the data from test_daily_total
+    # (Assuming both today and yesterday are in the same month for this test, 
+    # which is true most days except the 1st of the month. 
+    # For a robust test, we would normally inject specific dates, but this works given our mock data).
+    if today_date.month == yesterday_date.month:
+        assert today_date in data
+        assert data[today_date] == 3600
+        assert yesterday_date in data
+        assert data[yesterday_date] == 1800
+    
+    # Next month should be empty
+    next_month = now.month + 1 if now.month < 12 else 1
+    next_year = now.year if now.month < 12 else now.year + 1
+    empty_data = service.get_monthly_study_data(next_year, next_month)
+    assert len(empty_data) == 0

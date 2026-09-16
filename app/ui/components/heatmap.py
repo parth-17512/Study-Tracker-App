@@ -71,7 +71,7 @@ class HeatmapWidget(QWidget):
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(Theme.SPACING_MEDIUM)
+        self.layout.setSpacing(Theme.SPACING_REGULAR)
         
         self.setup_ui()
         
