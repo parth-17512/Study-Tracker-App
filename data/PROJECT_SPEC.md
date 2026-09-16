@@ -57,6 +57,7 @@ The project should follow these principles:
 8.  No unnecessary dependencies.
 9.  No telemetry.
 10. No cloud dependency for core functionality.
+11. **UI Agnosticism**: The architecture must strictly isolate business logic and database operations from the frontend. This application might transition to a Web or Mobile Application in the future. All architectural decisions made by agents must preserve this complete decoupling so the PySide6 UI can be safely swapped or API-ified without touching the core backend.
 
 ------------------------------------------------------------------------
 
