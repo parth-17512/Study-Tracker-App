@@ -1,5 +1,7 @@
 import logging
 import platform
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +16,9 @@ class NotificationService:
         self.notifications_enabled = True
         
         self.is_windows = platform.system() == 'Windows'
+        self._alarm_running = False
+        self._alarm_thread = None
+        
         if self.is_windows:
             import winsound
             self.winsound = winsound
@@ -25,21 +30,27 @@ class NotificationService:
             
         try:
             if self.is_windows:
-                # SND_ASYNC = return immediately, SND_LOOP = loop indefinitely, SND_ALIAS = system sound
-                self.winsound.PlaySound("SystemExclamation", self.winsound.SND_ALIAS | self.winsound.SND_LOOP | self.winsound.SND_ASYNC)
-                logger.debug("Started looping system alarm.")
+                self._alarm_running = True
+                self._alarm_thread = threading.Thread(target=self._beep_loop, daemon=True)
+                self._alarm_thread.start()
+                logger.debug("Started threading beep alarm.")
             else:
                 from PySide6.QtWidgets import QApplication
                 QApplication.beep()
         except Exception as e:
             logger.error(f"Failed to play alarm: {e}")
             
+    def _beep_loop(self):
+        """Internal loop to trigger PC speaker beeps."""
+        while self._alarm_running:
+            try:
+                # 800Hz for 400ms is a standard alarm tone
+                self.winsound.Beep(800, 400)
+                time.sleep(0.4)
+            except Exception:
+                break
+            
     def stop_alarm(self):
         """Stops the looping alarm sound."""
-        try:
-            if self.is_windows:
-                # SND_PURGE stops the currently playing waveform
-                self.winsound.PlaySound(None, self.winsound.SND_PURGE)
-                logger.debug("Stopped system alarm.")
-        except Exception as e:
-            logger.error(f"Failed to stop alarm: {e}")
+        self._alarm_running = False
+        logger.debug("Stopped system alarm.")
