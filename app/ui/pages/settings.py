@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QCheckBox, QFileDialog, QMessageBox
+    QCheckBox, QPushButton, QMessageBox, QFileDialog, QLineEdit, QGroupBox
 )
 from PySide6.QtCore import Qt
 from app.ui.theme import Theme
@@ -15,6 +15,7 @@ class SettingsPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config = ConfigManager()
+        self.config_manager = self.config
         self.data_service = DataService()
         
         self.layout = QVBoxLayout(self)
@@ -26,7 +27,14 @@ class SettingsPage(QWidget):
         self.layout.addWidget(lbl_title)
         
         self.setup_preferences_card()
-        self.setup_data_card()
+        data_card = self.setup_data_card()
+        self.layout.addWidget(data_card)
+        
+        # AI Config Card
+        ai_card = QWidget()
+        ai_card.setObjectName("SettingsCard")
+        self.setup_ai_card(ai_card)
+        self.layout.addWidget(ai_card)
         
         self.layout.addStretch()
         
@@ -42,16 +50,20 @@ class SettingsPage(QWidget):
         self.chk_sound.setStyleSheet(f"color: {Theme.TEXT_PRIMARY};")
         self.chk_sound.setChecked(self.config.get("sound_enabled", True))
         self.chk_sound.toggled.connect(lambda c: self.config.set("sound_enabled", c))
+        self.chk_sound.toggled.connect(lambda: self.save_settings())
         layout.addWidget(self.chk_sound)
+        self.cb_sound = self.chk_sound
         
         self.chk_notif = QCheckBox("Enable Desktop Notifications")
         self.chk_notif.setStyleSheet(f"color: {Theme.TEXT_PRIMARY};")
         self.chk_notif.setChecked(self.config.get("notifications_enabled", True))
         self.chk_notif.toggled.connect(lambda c: self.config.set("notifications_enabled", c))
+        self.chk_notif.toggled.connect(lambda: self.save_settings())
         layout.addWidget(self.chk_notif)
+        self.cb_notifications = self.chk_notif
         
         card.addLayout(layout)
-        self.layout.addWidget(card)
+        return card
         
     def setup_data_card(self):
         card = Card()
@@ -91,7 +103,41 @@ class SettingsPage(QWidget):
         layout.addWidget(btn_wipe)
         
         card.addLayout(layout)
-        self.layout.addWidget(card)
+        return card
+
+    def setup_ai_card(self, parent):
+        layout = QVBoxLayout(parent)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        title = QLabel("AI Study Coach Configuration")
+        title.setObjectName("CardTitle")
+        layout.addWidget(title)
+        
+        key_layout = QHBoxLayout()
+        key_label = QLabel("Google Gemini API Key:")
+        key_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.setPlaceholderText("Enter your API Key here...")
+        self.api_key_input.setText(self.config_manager.get("gemini_api_key", ""))
+        self.api_key_input.textChanged.connect(self.save_settings)
+        
+        key_layout.addWidget(key_label)
+        key_layout.addWidget(self.api_key_input)
+        layout.addLayout(key_layout)
+        
+        info = QLabel("The API key is required to use the real AI Coach. If left blank, a Mock AI will be used.")
+        info.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; font-style: italic;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+    def save_settings(self):
+        self.config_manager.set("sound_enabled", self.cb_sound.isChecked())
+        notif = self.cb_notifications.isChecked()
+        self.config_manager.set("notifications_enabled", notif)
+        self.config_manager.set("desktop_notifications", notif)
+        self.config_manager.set("gemini_api_key", self.api_key_input.text())
         
     def export_csv(self):
         filepath, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv)")

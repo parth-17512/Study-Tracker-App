@@ -20,12 +20,14 @@ class ConfigManager:
         self.config_file = DATA_DIR / "settings.json"
         
         # Default settings
-        self.settings = {
+        self.default_settings = {
             "sound_enabled": True,
-            "notifications_enabled": True,
+            "desktop_notifications": True,
             "theme": "dark",
-            "default_pomodoro_minutes": 25
+            "default_pomodoro_minutes": 25,
+            "gemini_api_key": ""
         }
+        self.settings = self.default_settings.copy()
         
         self.load()
 

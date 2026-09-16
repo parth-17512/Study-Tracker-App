@@ -1,5 +1,7 @@
 import logging
+from typing import Dict, Any
 from app.ai.tools import AITools
+from app.ai.providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -9,8 +11,9 @@ class StudyCoachAgent:
     via the AITools sandbox.
     """
     
-    def __init__(self):
+    def __init__(self, provider: LLMProvider):
         self.tools = AITools()
+        self.provider = provider
         
     def get_available_tools(self) -> list:
         """Returns a JSON-serializable schema of all tools the LLM can call."""
@@ -67,3 +70,8 @@ class StudyCoachAgent:
         except Exception as e:
             logger.error(f"Error executing AI tool {tool_name}: {e}")
             return {"error": f"Internal execution error: {str(e)}"}
+            
+    def chat(self, prompt: str) -> str:
+        """Processes a natural language prompt using the configured LLM Provider."""
+        schema = self.get_available_tools()
+        return self.provider.generate_response(prompt, schema, self.execute_tool)

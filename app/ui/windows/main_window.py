@@ -6,6 +6,7 @@ from app.ui.pages.dashboard import DashboardPage
 from app.ui.theme import Theme
 
 from app.ui.pages.timer import TimerPage
+from app.ui.pages.coach import CoachPage
 from app.services.timer_service import TimerService
 from app.services.session_service import SessionService
 from app.services.notification_service import NotificationService
@@ -88,6 +89,10 @@ class MainWindow(QMainWindow):
         from app.ui.pages.settings import SettingsPage
         self.pages["settings"] = SettingsPage()
         self.pages_stack.addWidget(self.pages["settings"])
+        
+        # Coach
+        self.pages["coach"] = CoachPage()
+        self.pages_stack.addWidget(self.pages["coach"])
         
         # Placeholders for other pages
         for page_name in ["goals", "subjects"]:

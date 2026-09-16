@@ -1,12 +1,13 @@
 import pytest
 from app.ai.agent import StudyCoachAgent
+from app.ai.providers.mock import MockLLMProvider
 
 # Since AnalyticsService depends on the DB, we want to mock it or just verify the router handles it.
 # We'll just verify the router structure works and handles known/unknown tools.
 
 @pytest.fixture
 def agent():
-    return StudyCoachAgent()
+    return StudyCoachAgent(provider=MockLLMProvider())
 
 def test_get_available_tools(agent):
     tools = agent.get_available_tools()
