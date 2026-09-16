@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
         self.session_service = SessionService()
         self.notification_service = NotificationService(self)
         self.setWindowTitle("StudyTrack")
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(400, 300)
         
         # Central Widget
         self.central_widget = QWidget()
@@ -92,20 +92,16 @@ class MainWindow(QMainWindow):
         self.pages["settings"] = SettingsPage()
         self.pages_stack.addWidget(self.pages["settings"])
         
+        # Notes
+        from app.ui.pages.notes import NotesPage
+        self.pages["notes"] = NotesPage()
+        self.pages_stack.addWidget(self.pages["notes"])
+        
         # Coach
         self.pages["coach"] = CoachPage()
         self.pages_stack.addWidget(self.pages["coach"])
         
-        # Placeholders for other pages
-        for page_name in ["goals", "subjects"]:
-            placeholder = QWidget()
-            layout = QVBoxLayout(placeholder)
-            label = QLabel(f"{page_name.capitalize()} Page (Coming Soon)")
-            label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: {Theme.FONT_SIZE_XLARGE};")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(label)
-            self.pages[page_name] = placeholder
-            self.pages_stack.addWidget(placeholder)
+
             
         # Set default page
         self.navigate_to("dashboard")

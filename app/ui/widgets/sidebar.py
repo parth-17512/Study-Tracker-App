@@ -66,11 +66,10 @@ class Sidebar(QWidget):
             "dashboard": SidebarButton("Dashboard"),
             "timer": SidebarButton("Timer"),
             "sessions": SidebarButton("Sessions"),
-            "goals": SidebarButton("Goals"),
+            "notes": SidebarButton("Notes"),
             "analytics": SidebarButton("Analytics"),
             "coach": SidebarButton("Coach"),
             "calendar": SidebarButton("Calendar"),
-            "subjects": SidebarButton("Subjects"),
             "settings": SidebarButton("Settings")
         }
         

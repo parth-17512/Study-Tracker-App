@@ -11,15 +11,15 @@ class DayCell(QFrame):
     def __init__(self, day_date: date, parent=None):
         super().__init__(parent)
         self.day_date = day_date
-        self.setFixedSize(14, 14)
+        self.setFixedSize(18, 18)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        # Default empty state — visible dark cell (like GitHub's empty squares)
-        self.setStyleSheet("background-color: #161b22; border-radius: 2px;")
+        # Default empty state
+        self.setStyleSheet("background-color: #2a2b33; border-radius: 4px;")
         
     def set_intensity(self, duration_seconds: int, daily_goal_seconds: int):
-        """Sets the background color based on study intensity using GitHub green palette."""
+        """Sets the background color based on study intensity."""
         if duration_seconds == 0:
-            self.setStyleSheet("background-color: #161b22; border-radius: 2px;")
+            self.setStyleSheet("background-color: #2a2b33; border-radius: 4px;")
             self.setToolTip(f"{self.day_date.strftime('%b %d, %Y')}: No activity")
             return
             
@@ -29,19 +29,17 @@ class DayCell(QFrame):
             
         ratio = duration_seconds / daily_goal_seconds
         
-        # GitHub-style green color scale
+        # Custom green color scale to match Heat.js reference
         if ratio < 0.25:
-            color = "#0e4429"  # Level 1 — darkest green
+            color = "#486749"  # Level 1
         elif ratio < 0.50:
-            color = "#006d32"  # Level 2
+            color = "#588c5a"  # Level 2
         elif ratio < 0.75:
-            color = "#26a641"  # Level 3
-        elif ratio < 1.0:
-            color = "#39d353"  # Level 4 — bright green
+            color = "#68b26a"  # Level 3
         else:
-            color = "#39d353"  # Overachieved — same bright green
+            color = "#7ade7f"  # Level 4
             
-        self.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
+        self.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
         
         # Update tooltip
         h = duration_seconds // 3600
@@ -71,10 +69,10 @@ class HeatmapWidget(QWidget):
         self.main_layout.setContentsMargins(12, 12, 12, 12)
         self.main_layout.setSpacing(Theme.SPACING_SMALL)
         
-        # Give the whole widget a card-like background
+        # Give the whole widget a card-like background matching the image
         self.setStyleSheet(f"""
             HeatmapWidget {{
-                background-color: {Theme.BACKGROUND_CARD};
+                background-color: #21252b;
                 border-radius: 8px;
                 border: 1px solid {Theme.BORDER_COLOR};
             }}
@@ -116,17 +114,23 @@ class HeatmapWidget(QWidget):
         self.grid_widget.setStyleSheet("background: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
         self.grid_layout.setContentsMargins(0, 0, 0, 0)
-        self.grid_layout.setSpacing(3)
+        self.grid_layout.setSpacing(4)
         
         # Weekday Labels
-        days = ["Mon", "", "Wed", "", "Fri", "", ""]
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for r, d in enumerate(days):
-            if d:
-                lbl = QLabel(d)
-                lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
-                self.grid_layout.addWidget(lbl, r, 0)
+            lbl = QLabel(d)
+            lbl.setStyleSheet(f"color: #8b929c; font-size: 11px; background: transparent;")
+            self.grid_layout.addWidget(lbl, r + 1, 0) # +1 because row 0 is for months
+                
+        self.heatmap_scroll = QScrollArea()
+        self.heatmap_scroll.setWidgetResizable(True)
+        self.heatmap_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.heatmap_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.heatmap_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.heatmap_scroll.setWidget(self.grid_widget)
         
-        self.main_layout.addWidget(self.grid_widget, stretch=1)
+        self.main_layout.addWidget(self.heatmap_scroll, stretch=1)
         
         # Legend
         legend_layout = QHBoxLayout()
@@ -136,11 +140,11 @@ class HeatmapWidget(QWidget):
         less_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
         legend_layout.addWidget(less_lbl)
         
-        legend_colors = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"]
+        legend_colors = ["#486749", "#588c5a", "#68b26a", "#7ade7f"]
         for color in legend_colors:
             swatch = QFrame()
-            swatch.setFixedSize(12, 12)
-            swatch.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
+            swatch.setFixedSize(14, 14)
+            swatch.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
             legend_layout.addWidget(swatch)
             
         more_lbl = QLabel("More")
@@ -170,17 +174,25 @@ class HeatmapWidget(QWidget):
         start_date = date(year, 1, 1)
         
         # Find the monday of that week (0 = Monday, 6 = Sunday)
-        # We want column 1 to be the week containing Jan 1
         day_of_week = start_date.weekday()
-        
-        # Current drawing date
         current_date = start_date
         
         col = 1
-        row = day_of_week
+        row = day_of_week + 1 # +1 to leave row 0 for months
+        
+        months_added = set()
         
         # Draw all days in the year
         while current_date.year == year:
+            # Check if this is the start of a month or the first cell (so we place a month label)
+            if current_date.day == 1 or (current_date == start_date):
+                if current_date.month not in months_added:
+                    # Place month label
+                    m_lbl = QLabel(current_date.strftime("%b"))
+                    m_lbl.setStyleSheet(f"color: #8b929c; font-size: 11px; background: transparent;")
+                    self.grid_layout.addWidget(m_lbl, 0, col)
+                    months_added.add(current_date.month)
+            
             cell = DayCell(current_date)
             
             # Fetch data
@@ -195,7 +207,7 @@ class HeatmapWidget(QWidget):
             
             current_date += timedelta(days=1)
             row += 1
-            if row > 6:
-                row = 0
+            if row > 7: # Rows are 1-7 (Mon-Sun)
+                row = 1
                 col += 1
 

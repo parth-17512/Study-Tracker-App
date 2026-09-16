@@ -1,9 +1,11 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QScrollArea
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar, QScrollArea, QSpinBox
 from PySide6.QtCore import Qt
 from datetime import datetime, timezone
 from app.ui.theme import Theme
 from app.ui.components.card import Card
+from app.ui.components.button import PrimaryButton
 from app.services.analytics_service import AnalyticsService
+from app.config.config_manager import ConfigManager
 
 class DashboardPage(QWidget):
     """The main dashboard page showing summary analytics."""
@@ -11,9 +13,9 @@ class DashboardPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.analytics_service = AnalyticsService()
+        self.config = ConfigManager()
         
-        # Hardcode a daily goal for now (e.g. 2 hours). Will move to Settings later.
-        self.daily_goal_seconds = 2 * 3600 
+        self.daily_goal_seconds = self.config.get("daily_goal_seconds", 2 * 3600) 
         
         # Outer layout holds a scroll area
         outer_layout = QVBoxLayout(self)
@@ -28,7 +30,7 @@ class DashboardPage(QWidget):
         """)
         
         scroll_content = QWidget()
-        scroll_content.setMinimumWidth(900)
+        scroll_content.setMinimumWidth(650)
         self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)
@@ -55,35 +57,55 @@ class DashboardPage(QWidget):
         
         lbl_progress_title = QLabel("Daily Goal Progress")
         lbl_progress_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        lbl_progress_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         progress_layout.addWidget(lbl_progress_title)
         
-        self.lbl_progress_text = QLabel("0h 0m / 2h 0m")
-        self.lbl_progress_text.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 24px; font-weight: bold;")
-        progress_layout.addWidget(self.lbl_progress_text)
+        from app.ui.components.progress_pie import ProgressPieChart
+        self.progress_pie = ProgressPieChart()
+        progress_layout.addWidget(self.progress_pie, alignment=Qt.AlignmentFlag.AlignCenter, stretch=1)
         
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet(f"""
-            QProgressBar {{
-                background-color: {Theme.BACKGROUND_DARK};
-                border: none;
-                border-radius: 4px;
-                height: 12px;
-                text-align: center;
-                color: transparent;
-            }}
-            QProgressBar::chunk {{
-                background-color: {Theme.PRIMARY_ACCENT};
-                border-radius: 4px;
-            }}
-        """)
-        self.progress_bar.setMaximum(100)
-        self.progress_bar.setValue(0)
-        progress_layout.addWidget(self.progress_bar)
+        self.lbl_progress_text = QLabel("0h 0m / 2h 0m")
+        self.lbl_progress_text.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 18px; font-weight: bold;")
+        self.lbl_progress_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        progress_layout.addWidget(self.lbl_progress_text)
         
         self.progress_card.addLayout(progress_layout)
         metrics_layout.addWidget(self.progress_card, stretch=2)
         
-        # 2b. Streak Card
+        # 2b. Set Goal Card
+        self.goal_card = Card()
+        goal_layout = QVBoxLayout()
+        
+        lbl_goal_title = QLabel("Set Daily Goal")
+        lbl_goal_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        goal_layout.addWidget(lbl_goal_title)
+        
+        spin_layout = QHBoxLayout()
+        self.spin_goal_h = QSpinBox()
+        self.spin_goal_h.setRange(0, 24)
+        self.spin_goal_h.setSuffix("h")
+        self.spin_goal_h.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 4px;")
+        
+        self.spin_goal_m = QSpinBox()
+        self.spin_goal_m.setRange(0, 59)
+        self.spin_goal_m.setSuffix("m")
+        self.spin_goal_m.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 4px;")
+        
+        self.spin_goal_h.setValue(self.daily_goal_seconds // 3600)
+        self.spin_goal_m.setValue((self.daily_goal_seconds % 3600) // 60)
+        
+        spin_layout.addWidget(self.spin_goal_h)
+        spin_layout.addWidget(self.spin_goal_m)
+        goal_layout.addLayout(spin_layout)
+        
+        self.btn_set_goal = PrimaryButton("Update")
+        self.btn_set_goal.clicked.connect(self.update_daily_goal)
+        goal_layout.addWidget(self.btn_set_goal)
+        
+        self.goal_card.addLayout(goal_layout)
+        metrics_layout.addWidget(self.goal_card, stretch=1)
+        
+        # 2c. Streak Card
         self.streak_card = Card()
         streak_layout = QVBoxLayout()
         
@@ -129,6 +151,16 @@ class DashboardPage(QWidget):
         
         self.layout.addLayout(bottom_layout)
 
+    def update_daily_goal(self):
+        h = self.spin_goal_h.value()
+        m = self.spin_goal_m.value()
+        new_seconds = h * 3600 + m * 60
+        if new_seconds > 0:
+            self.daily_goal_seconds = new_seconds
+            self.config.set("daily_goal_seconds", self.daily_goal_seconds)
+            self.heatmap.daily_goal_seconds = self.daily_goal_seconds
+            self.load_data()
+
     def load_heatmap_data(self, year: int):
         data = self.analytics_service.get_yearly_heatmap_data(year)
         self.heatmap.render_grid(year, data)
@@ -152,11 +184,7 @@ class DashboardPage(QWidget):
         
         self.lbl_progress_text.setText(f"{h}h {m}m / {goal_h}h {goal_m}m")
         
-        percentage = min(int((daily_seconds / self.daily_goal_seconds) * 100), 100) if self.daily_goal_seconds > 0 else 0
-        self.progress_bar.setValue(percentage)
-        
-        if percentage >= 100:
-            self.progress_bar.setStyleSheet(self.progress_bar.styleSheet().replace(Theme.PRIMARY_ACCENT, Theme.SUCCESS_COLOR))
+        self.progress_pie.set_data(daily_seconds, self.daily_goal_seconds)
         
         # Streak
         streak = self.analytics_service.calculate_current_streak(now)

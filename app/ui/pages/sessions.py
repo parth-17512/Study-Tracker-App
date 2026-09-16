@@ -17,9 +17,25 @@ class SessionsPage(QWidget):
         super().__init__(parent)
         self.session_service = SessionService()
         
-        self.layout = QVBoxLayout(self)
+        from PySide6.QtWidgets import QScrollArea
+        
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
+        
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background-color: transparent;")
+        self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)
+        
+        scroll_area.setWidget(scroll_content)
+        outer_layout.addWidget(scroll_area)
         
         self.setup_ui()
         self.load_data()

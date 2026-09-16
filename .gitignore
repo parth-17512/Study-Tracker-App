@@ -29,3 +29,6 @@ htmlcov/
 
 # User data
 user_data/
+
+# Logs
+logs/

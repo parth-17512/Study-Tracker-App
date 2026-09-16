@@ -70,3 +70,17 @@ class ActiveTimer(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
+class NoteNode(Base):
+    __tablename__ = "note_nodes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    parent_id = Column(Integer, ForeignKey("note_nodes.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    is_folder = Column(Boolean, default=False, nullable=False)
+    content = Column(Text, nullable=True) # Text content for files
+    is_favorite = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    
+    children = relationship("NoteNode", back_populates="parent", cascade="all, delete-orphan")
+    parent = relationship("NoteNode", back_populates="children", remote_side=[id])

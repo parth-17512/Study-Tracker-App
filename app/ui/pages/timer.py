@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStackedWidget, QSpinBox, QRadioButton, QButtonGroup, QSpacerItem, QSizePolicy
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStackedWidget, QSpinBox, QRadioButton, QButtonGroup, QSpacerItem, QSizePolicy, QLineEdit
 from PySide6.QtCore import Qt, QTimer as QtCoreTimer
 from app.ui.theme import Theme
 from app.ui.components.card import Card
@@ -16,9 +16,25 @@ class TimerPage(QWidget):
         self.timer_service = timer_service
         self.notification_service = notification_service
         
-        self.layout = QVBoxLayout(self)
+        from PySide6.QtWidgets import QScrollArea
+        
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
+        
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background-color: transparent;")
+        self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)
+        
+        scroll_area.setWidget(scroll_content)
+        outer_layout.addWidget(scroll_area)
         
         # UI Update Loop
         self.update_timer = QtCoreTimer(self)
@@ -54,6 +70,26 @@ class TimerPage(QWidget):
         timer_card = Card()
         timer_layout = QVBoxLayout()
         timer_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        timer_layout.setSpacing(Theme.SPACING_LARGE)
+        
+        # Topic Input
+        self.topic_input = QLineEdit()
+        self.topic_input.setPlaceholderText("What are you focusing on? (Optional)")
+        self.topic_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {Theme.BACKGROUND_DARK};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER_COLOR};
+                border-radius: 6px;
+                padding: 10px;
+                font-size: 16px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Theme.PRIMARY_ACCENT};
+            }}
+        """)
+        self.topic_input.setMaximumWidth(400)
+        timer_layout.addWidget(self.topic_input, alignment=Qt.AlignmentFlag.AlignCenter)
         
         # Input for Countdown (Hidden in Stopwatch mode)
         self.duration_input_widget = QWidget()
@@ -255,6 +291,10 @@ class TimerPage(QWidget):
         # Input visibility
         self.duration_input_widget.setVisible(state == TimerState.IDLE and self.radio_countdown.isChecked())
         
+        self.topic_input.setEnabled(state == TimerState.IDLE)
+        if state != TimerState.IDLE and self.timer_service.engine.topic:
+            self.topic_input.setText(self.timer_service.engine.topic)
+        
         # Button visibility
         self.btn_start.setVisible(state == TimerState.IDLE)
         self.btn_pause.setVisible(state == TimerState.RUNNING)
@@ -273,13 +313,15 @@ class TimerPage(QWidget):
             self.update_display()
 
     def start_timer(self):
+        topic = self.topic_input.text().strip() or None
+        
         if self.radio_stopwatch.isChecked():
-            self.timer_service.start_stopwatch()
+            self.timer_service.start_stopwatch(topic=topic)
         else:
             total_secs = (self.spin_hours.value() * 3600) + (self.spin_mins.value() * 60)
             if total_secs == 0:
                 return # Cannot start 0 duration
-            self.timer_service.start_countdown(duration_seconds=total_secs)
+            self.timer_service.start_countdown(duration_seconds=total_secs, topic=topic)
             
         self.sync_ui_state()
 
