@@ -33,9 +33,9 @@ class ChatBubble(QFrame):
             layout.addWidget(self.label)
         else:
             self.label.setStyleSheet(f"""
-                background-color: {Theme.SURFACE};
+                background-color: {Theme.BACKGROUND_CARD};
                 color: {Theme.TEXT_SECONDARY};
-                border: 1px solid {Theme.BORDER};
+                border: 1px solid {Theme.BORDER_COLOR};
                 border-radius: 10px;
                 padding: 10px;
             """)
@@ -69,11 +69,11 @@ class CoachPage(QWidget):
                 border: none;
             }}
             QScrollBar:vertical {{
-                background-color: {Theme.BACKGROUND};
+                background-color: {Theme.BACKGROUND_DARK};
                 width: 10px;
             }}
             QScrollBar::handle:vertical {{
-                background-color: {Theme.SURFACE_HOVER};
+                background-color: {Theme.BACKGROUND_CARD_HOVER};
                 border-radius: 5px;
             }}
         """)
@@ -90,9 +90,9 @@ class CoachPage(QWidget):
         self.input_field.setPlaceholderText("Ask your coach a question (e.g., 'What is my streak?')...")
         self.input_field.setStyleSheet(f"""
             QLineEdit {{
-                background-color: {Theme.SURFACE};
+                background-color: {Theme.BACKGROUND_CARD};
                 color: {Theme.TEXT_PRIMARY};
-                border: 1px solid {Theme.BORDER};
+                border: 1px solid {Theme.BORDER_COLOR};
                 border-radius: 8px;
                 padding: 12px;
                 font-size: 14px;
@@ -115,7 +115,7 @@ class CoachPage(QWidget):
                 font-weight: bold;
             }}
             QPushButton:hover {{
-                background-color: {Theme.PRIMARY_HOVER};
+                background-color: {Theme.PRIMARY_ACCENT_HOVER};
             }}
         """)
         self.send_btn.clicked.connect(self.send_message)
