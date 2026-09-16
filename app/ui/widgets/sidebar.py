@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QSizePolicy
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
 from app.ui.theme import Theme
@@ -37,7 +37,9 @@ class Sidebar(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(240)
+        self.setMinimumWidth(180)
+        self.setMaximumWidth(260)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         
         self.setStyleSheet(f"""
             Sidebar {{

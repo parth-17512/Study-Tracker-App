@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QComboBox
+from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QComboBox, QScrollArea, QSizePolicy
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPalette
 from datetime import date, timedelta
@@ -65,6 +65,7 @@ class HeatmapWidget(QWidget):
         self.daily_goal_seconds = daily_goal_seconds
         self.current_year = date.today().year
         self.setMinimumHeight(180)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(12, 12, 12, 12)
@@ -110,6 +111,17 @@ class HeatmapWidget(QWidget):
         
         self.main_layout.addLayout(header_layout)
         
+        # Horizontal scroll area for the grid so it scrolls on small windows
+        self.grid_scroll = QScrollArea()
+        self.grid_scroll.setWidgetResizable(False)
+        self.grid_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.grid_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.grid_scroll.setStyleSheet("""
+            QScrollArea { background: transparent; border: none; }
+            QScrollBar:horizontal { height: 6px; background: transparent; }
+            QScrollBar::handle:horizontal { background: #333; border-radius: 3px; }
+        """)
+        
         # Grid Layout for the Heatmap
         self.grid_widget = QWidget()
         self.grid_widget.setStyleSheet("background: transparent;")
@@ -124,8 +136,9 @@ class HeatmapWidget(QWidget):
                 lbl = QLabel(d)
                 lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
                 self.grid_layout.addWidget(lbl, r, 0)
-            
-        self.main_layout.addWidget(self.grid_widget)
+        
+        self.grid_scroll.setWidget(self.grid_widget)
+        self.main_layout.addWidget(self.grid_scroll, stretch=1)
         
         # Legend
         legend_layout = QHBoxLayout()
