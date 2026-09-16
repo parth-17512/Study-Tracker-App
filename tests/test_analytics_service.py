@@ -146,3 +146,33 @@ def test_monthly_study_data(db_session):
     next_year = now.year if now.month < 12 else now.year + 1
     empty_data = service.get_monthly_study_data(next_year, next_month)
     assert len(empty_data) == 0
+
+def test_advanced_analytics(db_session):
+    db = MockDB(db_session)
+    service = AnalyticsService(db=db)
+    now = datetime.now(timezone.utc)
+    
+    # 1. Summary Stats
+    stats = service.get_summary_stats()
+    assert stats["total_sessions"] == 2 # From previous mock data
+    assert stats["total_seconds"] == 5400 # 3600 + 1800
+    assert stats["avg_session_seconds"] == 2700
+    
+    # 2. Period Comparisons
+    comps = service.get_period_comparisons(now)
+    # Both test sessions were today or yesterday. 
+    # If today is Monday, yesterday was Sunday (last week). 
+    # Let's just ensure they add up to 5400 across this_week + last_week
+    assert (comps["this_week"] + comps["last_week"]) == 5400
+    
+    # 3. Topic Distribution
+    # The mock sessions didn't have a topic set, so it should default to "Uncategorized"
+    dist = service.get_topic_distribution()
+    assert "Uncategorized" in dist
+    assert dist["Uncategorized"] == 5400
+    
+    # 4. Last 7 days
+    last_7 = service.get_last_7_days_chart_data(now)
+    assert len(last_7) == 7
+    assert last_7[now.date()] == 3600
+    assert last_7[(now - timedelta(days=1)).date()] == 1800
