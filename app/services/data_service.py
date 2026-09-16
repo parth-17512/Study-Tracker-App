@@ -68,6 +68,18 @@ class DataService(BaseService):
             logger.error(f"Failed to export JSON: {e}")
             return False
 
+    def export_ml_dataset(self, filepath: str) -> bool:
+        """Exports a feature-engineered dataset for Machine Learning."""
+        try:
+            from app.ml.dataset import DatasetGenerator
+            with self.db.get_session() as session:
+                sessions = self.session_repo.get_all(session)
+            
+            return DatasetGenerator.export_to_csv(sessions, filepath)
+        except Exception as e:
+            logger.error(f"Failed to export ML dataset: {e}")
+            return False
+
     def wipe_all_data(self) -> bool:
         """Wipes all data from the database."""
         try:

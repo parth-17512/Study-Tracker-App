@@ -75,6 +75,11 @@ class SettingsPage(QWidget):
         btn_json.clicked.connect(self.export_json)
         btn_layout.addWidget(btn_json)
         
+        btn_ml = SecondaryButton("Export ML Dataset")
+        btn_ml.setStyleSheet(f"background-color: {Theme.PRIMARY_ACCENT}; color: {Theme.TEXT_PRIMARY};")
+        btn_ml.clicked.connect(self.export_ml_dataset)
+        btn_layout.addWidget(btn_ml)
+        
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
         
@@ -103,6 +108,14 @@ class SettingsPage(QWidget):
                 QMessageBox.information(self, "Export Successful", f"Data exported to:\n{filepath}")
             else:
                 QMessageBox.warning(self, "Export Failed", "Failed to export data to JSON.")
+                
+    def export_ml_dataset(self):
+        filepath, _ = QFileDialog.getSaveFileName(self, "Export ML Dataset", "ml_dataset.csv", "CSV Files (*.csv)")
+        if filepath:
+            if self.data_service.export_ml_dataset(filepath):
+                QMessageBox.information(self, "Export Successful", f"ML Dataset generated and exported to:\n{filepath}")
+            else:
+                QMessageBox.warning(self, "Export Failed", "Failed to generate ML dataset (ensure you have completed sessions!).")
                 
     def wipe_data(self):
         reply = QMessageBox.question(
