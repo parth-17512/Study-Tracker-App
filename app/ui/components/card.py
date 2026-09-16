@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import QFrame, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QSizePolicy
 from app.ui.theme import Theme
 
 class Card(QFrame):
     """A reusable rounded card widget."""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         # Apply the card styling
         self.setStyleSheet(f"""

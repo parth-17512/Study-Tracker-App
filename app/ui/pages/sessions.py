@@ -121,7 +121,7 @@ class SessionsPage(QWidget):
         card_layout.addWidget(self.table)
         card.addLayout(card_layout)
         
-        self.layout.addWidget(card)
+        self.layout.addWidget(card, stretch=1)
 
     def load_data(self):
         # Read filters

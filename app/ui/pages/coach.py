@@ -82,7 +82,7 @@ class CoachPage(QWidget):
         self.chat_layout = QVBoxLayout(self.chat_container)
         self.chat_layout.setAlignment(Qt.AlignTop)
         self.scroll_area.setWidget(self.chat_container)
-        self.layout.addWidget(self.scroll_area)
+        self.layout.addWidget(self.scroll_area, stretch=1)
         
         # Input Area
         input_layout = QHBoxLayout()

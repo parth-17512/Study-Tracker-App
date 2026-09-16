@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QSizePolicy
 from PySide6.QtCore import Qt
 from app.ui.widgets.sidebar import Sidebar
 from app.ui.widgets.topbar import Topbar
@@ -48,9 +48,11 @@ class MainWindow(QMainWindow):
         # 2b. Pages Stack
         self.pages_stack = QStackedWidget()
         self.pages_stack.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK};")
-        self.right_layout.addWidget(self.pages_stack)
+        self.pages_stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.right_layout.addWidget(self.pages_stack, stretch=1)
         
-        self.main_layout.addWidget(self.right_widget)
+        self.right_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.main_layout.addWidget(self.right_widget, stretch=1)
         
         # Initialize Pages
         self.setup_pages()

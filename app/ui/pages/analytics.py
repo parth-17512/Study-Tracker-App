@@ -28,7 +28,7 @@ class AnalyticsPage(QWidget):
         self.layout.setSpacing(Theme.SPACING_LARGE)
         
         self.scroll.setWidget(self.scroll_content)
-        self.main_layout.addWidget(self.scroll)
+        self.main_layout.addWidget(self.scroll, stretch=1)
         
         self.setup_ui()
         
