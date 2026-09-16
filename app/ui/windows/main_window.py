@@ -5,11 +5,15 @@ from app.ui.widgets.topbar import Topbar
 from app.ui.pages.dashboard import DashboardPage
 from app.ui.theme import Theme
 
+from app.ui.pages.timer import TimerPage
+from app.services.timer_service import TimerService
+
 class MainWindow(QMainWindow):
     """The main application window."""
     
-    def __init__(self):
+    def __init__(self, timer_service: TimerService):
         super().__init__()
+        self.timer_service = timer_service
         self.setWindowTitle("StudyTrack - Build a Better You")
         self.setMinimumSize(1280, 720)
         
@@ -57,8 +61,12 @@ class MainWindow(QMainWindow):
         self.pages["dashboard"] = DashboardPage()
         self.pages_stack.addWidget(self.pages["dashboard"])
         
+        # Timer
+        self.pages["timer"] = TimerPage(self.timer_service)
+        self.pages_stack.addWidget(self.pages["timer"])
+        
         # Placeholders for other pages
-        for page_name in ["timer", "sessions", "goals", "analytics", "calendar", "subjects", "settings"]:
+        for page_name in ["sessions", "goals", "analytics", "calendar", "subjects", "settings"]:
             placeholder = QWidget()
             layout = QVBoxLayout(placeholder)
             label = QLabel(f"{page_name.capitalize()} Page (Coming Soon)")

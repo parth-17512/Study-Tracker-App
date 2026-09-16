@@ -20,15 +20,26 @@ def main():
     
     # Check for active timers (Phase 2 foundation)
     from app.services.timer_service import TimerService
+    from app.ui.components.dialogs import ResumeTimerDialog
+    
     timer_service = TimerService()
-    if timer_service.check_active_timer():
-        logger.info("Found an active abandoned timer in the database!")
     
     # Apply global stylesheet
     app.setStyleSheet(GLOBAL_STYLESHEET)
     
+    # Check for active timer and prompt BEFORE building UI so TimerPage syncs perfectly
+    if timer_service.check_active_timer():
+        # We need a hidden root widget for the dialog to center properly, but None is fine too
+        dialog = ResumeTimerDialog()
+        if dialog.exec():
+            # User chose Resume -> state is loaded, do nothing
+            pass
+        else:
+            # User chose Discard
+            timer_service.cancel()
+    
     # Launch main window
-    window = MainWindow()
+    window = MainWindow(timer_service)
     window.show()
     
     logger.info("StudyTrack started successfully.")
