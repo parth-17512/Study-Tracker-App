@@ -69,6 +69,9 @@ class TimerPage(QWidget):
         self.spin_mins.setSuffix(" m")
         self.spin_mins.setValue(25) # Default pomodoro
         
+        self.spin_hours.valueChanged.connect(self.update_display)
+        self.spin_mins.valueChanged.connect(self.update_display)
+        
         duration_layout.addWidget(self.spin_hours)
         duration_layout.addWidget(self.spin_mins)
         self.duration_input_widget.hide() # Default is stopwatch
