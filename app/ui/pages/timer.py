@@ -6,12 +6,15 @@ from app.ui.components.button import PrimaryButton, SecondaryButton
 from app.services.timer_service import TimerService
 from app.timer.timer_state import TimerState, TimerMode
 
+from app.services.notification_service import NotificationService
+
 class TimerPage(QWidget):
     """The timer page featuring a stopwatch and countdown mode."""
     
-    def __init__(self, timer_service: TimerService, parent=None):
+    def __init__(self, timer_service: TimerService, notification_service: NotificationService, parent=None):
         super().__init__(parent)
         self.timer_service = timer_service
+        self.notification_service = notification_service
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
@@ -164,7 +167,8 @@ class TimerPage(QWidget):
             secs = engine.get_remaining_seconds()
             self.time_display.setText(self.format_time(secs))
             if secs == 0 and engine.state == TimerState.RUNNING:
-                # Auto-complete
+                # Auto-complete and Notify
+                self.notification_service.notify_session_complete()
                 self.timer_service.complete()
                 self.sync_ui_state()
 

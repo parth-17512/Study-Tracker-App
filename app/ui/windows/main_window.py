@@ -8,6 +8,7 @@ from app.ui.theme import Theme
 from app.ui.pages.timer import TimerPage
 from app.services.timer_service import TimerService
 from app.services.session_service import SessionService
+from app.services.notification_service import NotificationService
 
 class MainWindow(QMainWindow):
     """The main application window containing the sidebar and page stack."""
@@ -16,6 +17,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.timer_service = timer_service
         self.session_service = SessionService()
+        self.notification_service = NotificationService(self)
         self.setWindowTitle("StudyTrack")
         self.setMinimumSize(1000, 700)
         
@@ -64,7 +66,7 @@ class MainWindow(QMainWindow):
         self.pages_stack.addWidget(self.pages["dashboard"])
         
         # Timer
-        self.pages["timer"] = TimerPage(self.timer_service)
+        self.pages["timer"] = TimerPage(self.timer_service, self.notification_service)
         self.pages_stack.addWidget(self.pages["timer"])
         
         # Sessions
