@@ -1,14 +1,15 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QLineEdit, QPushButton, QScrollArea, QFrame,
-    QTextEdit, QSizePolicy
+    QTextEdit, QSizePolicy, QListWidget, QListWidgetItem, QMenu, QMessageBox, QInputDialog, QApplication
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from app.ui.theme import Theme
 from app.config.config_manager import ConfigManager
 from app.ai.agent import StudyCoachAgent
 from app.ai.providers.mock import MockLLMProvider
 from app.ai.providers.gemini import GeminiProvider
+from app.services.chat_service import ChatService
 
 class ChatBubble(QFrame):
     """A custom widget to render chat bubbles."""
@@ -20,6 +21,8 @@ class ChatBubble(QFrame):
         
         self.label = QLabel(text)
         self.label.setWordWrap(True)
+        if not is_user:
+            self.label.setTextFormat(Qt.MarkdownText)
         self.label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         
         if is_user:
@@ -42,6 +45,41 @@ class ChatBubble(QFrame):
             layout.addWidget(self.label)
             layout.addStretch()
 
+class AICoachWorker(QThread):
+    finished = Signal(str)
+    error = Signal(str)
+    
+    def __init__(self, text, agent):
+        super().__init__()
+        self.text = text
+        self.agent = agent
+        
+    def run(self):
+        try:
+            from app.ai.providers.typesafe_router import intent_router
+            intent = intent_router.classify_intent(self.text)
+            
+            if intent.action == "search_notes":
+                from app.services.rag_service import RAGService
+                rag = RAGService()
+                query = intent.search_query if intent.search_query else self.text
+                results = rag.search(query, n_results=3)
+                if results:
+                    context = "\n---\n".join([f"Note ({r['name']}):\n{r['text']}" for r in results])
+                    prompt = f"User asked: {self.text}\n\nRelevant Notes Context:\n{context}\n\nPlease answer the user's question based on the provided notes context."
+                    response = self.agent.chat(prompt)
+                else:
+                    response = "I couldn't find any highly relevant notes to answer that."
+            elif intent.action == "get_stats":
+                prompt = f"User asked: {self.text}\n\nPlease use your stats tools to accurately answer the question."
+                response = self.agent.chat(prompt)
+            else:
+                response = self.agent.chat(self.text)
+                
+            self.finished.emit(response)
+        except Exception as e:
+            self.error.emit(str(e))
+
 class CoachPage(QWidget):
     """The AI Study Coach interface."""
     
@@ -49,16 +87,98 @@ class CoachPage(QWidget):
         super().__init__(parent)
         
         self.config = ConfigManager()
+        self.chat_service = ChatService()
+        self.current_session_id = None
         self.init_agent()
         
-        self.layout = QVBoxLayout(self)
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # --- Sidebar ---
+        self.sidebar = QFrame()
+        self.sidebar.setFixedWidth(250)
+        self.sidebar.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; border-right: 1px solid {Theme.BORDER_COLOR};")
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(15, 20, 15, 20)
+        
+        self.btn_new_chat = QPushButton("+ New Chat")
+        self.btn_new_chat.setCursor(Qt.PointingHandCursor)
+        self.btn_new_chat.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Theme.PRIMARY_ACCENT};
+                color: {Theme.TEXT_PRIMARY};
+                border-radius: 6px;
+                padding: 10px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.PRIMARY_ACCENT_HOVER};
+            }}
+        """)
+        self.btn_new_chat.clicked.connect(self.new_chat)
+        sidebar_layout.addWidget(self.btn_new_chat)
+        
+        lbl_history = QLabel("Previous Chats")
+        lbl_history.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; font-weight: bold; margin-top: 15px;")
+        sidebar_layout.addWidget(lbl_history)
+        
+        self.session_list = QListWidget()
+        self.session_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: transparent;
+                border: none;
+                color: {Theme.TEXT_PRIMARY};
+            }}
+            QListWidget::item {{
+                padding: 10px;
+                border-radius: 6px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {Theme.BACKGROUND_CARD};
+            }}
+            QListWidget::item:hover {{
+                background-color: {Theme.BACKGROUND_CARD_HOVER};
+            }}
+        """)
+        self.session_list.itemClicked.connect(self.load_session)
+        self.session_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.session_list.customContextMenuRequested.connect(self.show_context_menu)
+        sidebar_layout.addWidget(self.session_list)
+        
+        self.btn_delete_chat = QPushButton("🗑 Delete Selected Chat")
+        self.btn_delete_chat.setCursor(Qt.PointingHandCursor)
+        self.btn_delete_chat.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Theme.DANGER_COLOR};
+                border-radius: 6px;
+                padding: 10px;
+                font-weight: bold;
+                border: 1px solid {Theme.DANGER_COLOR};
+            }}
+            QPushButton:hover {{
+                background-color: {Theme.DANGER_COLOR};
+                color: {Theme.TEXT_PRIMARY};
+            }}
+        """)
+        self.btn_delete_chat.clicked.connect(self.delete_selected_chat)
+        sidebar_layout.addWidget(self.btn_delete_chat)
+        
+        main_layout.addWidget(self.sidebar)
+        
+        # --- Main Chat Area ---
+        self.chat_area = QWidget()
+        self.layout = QVBoxLayout(self.chat_area)
         self.layout.setContentsMargins(30, 30, 30, 30)
         self.layout.setSpacing(20)
         
         # Header
-        header = QLabel("AI Study Coach")
-        header.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 24px; font-weight: bold;")
-        self.layout.addWidget(header)
+        self.header = QLabel("AI Study Coach")
+        self.header.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 24px; font-weight: bold;")
+        self.layout.addWidget(self.header)
+        
+        main_layout.addWidget(self.chat_area, stretch=1)
         
         # Chat History Scroll Area
         self.scroll_area = QScrollArea()
@@ -125,8 +245,95 @@ class CoachPage(QWidget):
         
         self.layout.addLayout(input_layout)
         
-        # Welcome message
+        self.refresh_session_list()
+        self.new_chat()
+
+    def refresh_session_list(self):
+        self.session_list.clear()
+        sessions = self.chat_service.get_all_sessions()
+        for session in sessions:
+            item = QListWidgetItem(session.title)
+            item.setData(Qt.UserRole, session.id)
+            self.session_list.addItem(item)
+            
+    def new_chat(self):
+        self.current_session_id = None
+        self.header.setText("New Chat")
+        self.clear_chat()
         self.add_coach_message("Hello! I am your AI Study Coach. How can I help you optimize your study sessions today?")
+        
+    def clear_chat(self):
+        while self.chat_layout.count():
+            child = self.chat_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+                
+    def load_session(self, item):
+        session_id = item.data(Qt.UserRole)
+        self.current_session_id = session_id
+        self.header.setText(item.text())
+        self.clear_chat()
+        
+        messages = self.chat_service.get_messages(session_id)
+        for msg in messages:
+            if msg.role == "user":
+                self.add_user_message(msg.content, persist=False)
+            else:
+                self.add_coach_message(msg.content, persist=False)
+                
+    def show_context_menu(self, pos):
+        item = self.session_list.itemAt(pos)
+        if not item:
+            return
+            
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {Theme.BACKGROUND_CARD};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER_COLOR};
+            }}
+            QMenu::item:selected {{
+                background-color: {Theme.PRIMARY_ACCENT};
+            }}
+        """)
+        
+        rename_action = menu.addAction("Rename")
+        delete_action = menu.addAction("Delete")
+        
+        action = menu.exec(self.session_list.mapToGlobal(pos))
+        session_id = item.data(Qt.UserRole)
+        
+        if action == rename_action:
+            new_title, ok = QInputDialog.getText(self, "Rename Chat", "Enter new title:", QLineEdit.Normal, item.text())
+            if ok and new_title.strip():
+                self.chat_service.rename_session(session_id, new_title.strip())
+                self.refresh_session_list()
+                if self.current_session_id == session_id:
+                    self.header.setText(new_title.strip())
+        elif action == delete_action:
+            reply = QMessageBox.question(self, "Delete Chat", "Are you sure you want to delete this conversation?",
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.chat_service.delete_session(session_id)
+                self.refresh_session_list()
+                if self.current_session_id == session_id:
+                    self.new_chat()
+
+    def delete_selected_chat(self):
+        item = self.session_list.currentItem()
+        if not item:
+            QMessageBox.warning(self, "Delete Chat", "Please select a chat to delete.")
+            return
+            
+        session_id = item.data(Qt.UserRole)
+        reply = QMessageBox.question(self, "Delete Chat", "Are you sure you want to delete this conversation?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.chat_service.delete_session(session_id)
+            self.refresh_session_list()
+            if self.current_session_id == session_id:
+                self.new_chat()
 
     def init_agent(self):
         """Initializes the correct LLM provider based on config."""
@@ -139,15 +346,19 @@ class CoachPage(QWidget):
             
         self.agent = StudyCoachAgent(provider)
         
-    def add_user_message(self, text: str):
+    def add_user_message(self, text: str, persist: bool = True):
         bubble = ChatBubble(text, is_user=True)
         self.chat_layout.addWidget(bubble)
         self.scroll_to_bottom()
+        if persist and self.current_session_id:
+            self.chat_service.add_message(self.current_session_id, "user", text)
         
-    def add_coach_message(self, text: str):
+    def add_coach_message(self, text: str, persist: bool = True):
         bubble = ChatBubble(text, is_user=False)
         self.chat_layout.addWidget(bubble)
         self.scroll_to_bottom()
+        if persist and self.current_session_id:
+            self.chat_service.add_message(self.current_session_id, "assistant", text)
         
     def scroll_to_bottom(self):
         # Allow UI to process events then scroll
@@ -160,23 +371,44 @@ class CoachPage(QWidget):
         if not text:
             return
             
+        if not self.current_session_id:
+            # Generate a title from the first message
+            title = text[:30] + "..." if len(text) > 30 else text
+            session = self.chat_service.create_session(title=title)
+            self.current_session_id = session.id
+            self.refresh_session_list()
+            self.header.setText(title)
+            
         self.input_field.clear()
-        self.add_user_message(text)
+        self.add_user_message(text, persist=True)
+        
+        # Show Thinking bubble
+        self.thinking_bubble = ChatBubble("Thinking...", is_user=False)
+        self.chat_layout.addWidget(self.thinking_bubble)
+        self.scroll_to_bottom()
         
         # Disable input while processing
         self.input_field.setEnabled(False)
         self.send_btn.setEnabled(False)
         
-        # In a real app, this should be dispatched to a QThread to avoid freezing the UI,
-        # but for Phase 16 foundational limits, we run it synchronously.
-        try:
-            # Re-init agent in case API key changed in settings
-            self.init_agent()
-            response = self.agent.chat(text)
-            self.add_coach_message(response)
-        except Exception as e:
-            self.add_coach_message(f"An error occurred: {str(e)}")
-        finally:
-            self.input_field.setEnabled(True)
-            self.send_btn.setEnabled(True)
-            self.input_field.setFocus()
+        # Start worker
+        self.init_agent()
+        self.worker = AICoachWorker(text, self.agent)
+        self.worker.finished.connect(self.on_worker_finished)
+        self.worker.error.connect(self.on_worker_error)
+        self.worker.start()
+
+    def on_worker_finished(self, response: str):
+        self.thinking_bubble.deleteLater()
+        self.add_coach_message(response)
+        self.finish_processing()
+        
+    def on_worker_error(self, error_str: str):
+        self.thinking_bubble.deleteLater()
+        self.add_coach_message(f"An error occurred: {error_str}")
+        self.finish_processing()
+        
+    def finish_processing(self):
+        self.input_field.setEnabled(True)
+        self.send_btn.setEnabled(True)
+        self.input_field.setFocus()

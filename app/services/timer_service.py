@@ -54,6 +54,11 @@ class TimerService(BaseService):
             session.add(new_session)
             self.repository.clear_active(session)
             
+        # Award XP for the session
+        from app.services.xp_service import XPService
+        xp_service = XPService(self.db)
+        xp_service.process_session_completion(self.engine.get_elapsed_seconds())
+            
         # Reset the engine so it's clean for the next run
         self.engine.reset()
 
@@ -61,8 +66,22 @@ class TimerService(BaseService):
         """Cancels the timer, clears the active state."""
         self.engine.cancel()
         with self.db.get_session() as session:
-            # Depending on business logic, we might save cancelled sessions, but spec says "discarded"
-            # We'll just clear the active state
+            # Spec 3.9: Record the cancelled session with actual active time
+            if self.engine.get_elapsed_seconds() > 0:
+                new_session = StudySession(
+                    start_time=self.engine.start_time,
+                    end_time=self.engine.start_time, # Placeholder, fixed below
+                    duration_seconds=self.engine.get_elapsed_seconds(),
+                    subject_id=self.engine.subject_id,
+                    topic=self.engine.topic,
+                    notes=self.engine.notes,
+                    session_type=self.engine.mode.value,
+                    status=self.engine.state.value
+                )
+                from app.timer.timer_engine import utc_now
+                new_session.end_time = utc_now()
+                session.add(new_session)
+                
             self.repository.clear_active(session)
         self.engine.reset()
 
@@ -77,6 +96,7 @@ class TimerService(BaseService):
                     'mode': active_db.mode,
                     'start_time': active_db.start_time,
                     'target_end_time': active_db.target_end_time,
+                    'target_duration': active_db.target_duration,
                     'paused_at': active_db.paused_at,
                     'accumulated_elapsed_seconds': active_db.accumulated_elapsed_seconds,
                     'subject_id': active_db.subject_id,

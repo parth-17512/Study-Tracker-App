@@ -113,13 +113,6 @@ class SettingsPage(QWidget):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
         
-        layout.addSpacing(20)
-        
-        btn_wipe = PrimaryButton("Wipe All Data")
-        btn_wipe.setStyleSheet(f"background-color: {Theme.DANGER_COLOR};")
-        btn_wipe.clicked.connect(self.wipe_data)
-        layout.addWidget(btn_wipe)
-        
         card.addLayout(layout)
         return card
 
@@ -145,10 +138,37 @@ class SettingsPage(QWidget):
         key_layout.addWidget(self.api_key_input)
         layout.addLayout(key_layout)
         
-        info = QLabel("The API key is required to use the real AI Coach. If left blank, a Mock AI will be used.")
+        # TypeSafe API Key
+        ts_layout = QHBoxLayout()
+        ts_label = QLabel("TypeSafe API Key (Jev Router):")
+        ts_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        self.typesafe_key_input = QLineEdit()
+        self.typesafe_key_input.setEchoMode(QLineEdit.Password)
+        self.typesafe_key_input.setPlaceholderText("Enter TypeSafe API Key...")
+        self.typesafe_key_input.setText(self.config_manager.get("typesafe_api_key", ""))
+        self.typesafe_key_input.textChanged.connect(self.save_settings)
+        
+        ts_layout.addWidget(ts_label)
+        ts_layout.addWidget(self.typesafe_key_input)
+        layout.addLayout(ts_layout)
+        
+        info = QLabel("Gemini is used for conversational generation. TypeSafe Jev is used for instantaneous intent routing.")
         info.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; font-style: italic;")
         info.setWordWrap(True)
         layout.addWidget(info)
+        
+        btn_rebuild_rag = SecondaryButton("Rebuild Knowledge Index")
+        btn_rebuild_rag.clicked.connect(self.rebuild_rag_index)
+        layout.addWidget(btn_rebuild_rag)
+        
+    def rebuild_rag_index(self):
+        try:
+            from app.services.rag_service import RAGService
+            rag = RAGService()
+            rag.rebuild_index()
+            QMessageBox.information(self, "RAG Rebuild", f"Successfully rebuilt the knowledge index. Now tracking {rag.count()} chunks.")
+        except Exception as e:
+            QMessageBox.warning(self, "RAG Rebuild Failed", f"Failed to rebuild knowledge index:\n{e}")
         
     def save_settings(self):
         self.config_manager.set("sound_enabled", self.cb_sound.isChecked())
@@ -156,6 +176,7 @@ class SettingsPage(QWidget):
         self.config_manager.set("notifications_enabled", notif)
         self.config_manager.set("desktop_notifications", notif)
         self.config_manager.set("gemini_api_key", self.api_key_input.text())
+        self.config_manager.set("typesafe_api_key", self.typesafe_key_input.text())
         
     def export_csv(self):
         filepath, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv)")
@@ -181,17 +202,3 @@ class SettingsPage(QWidget):
             else:
                 QMessageBox.warning(self, "Export Failed", "Failed to generate ML dataset (ensure you have completed sessions!).")
                 
-    def wipe_data(self):
-        reply = QMessageBox.question(
-            self, 
-            "Confirm Data Wipe",
-            "Are you absolutely sure you want to delete all study sessions? This cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            if self.data_service.wipe_all_data():
-                QMessageBox.information(self, "Data Wiped", "All study sessions have been deleted.")
-            else:
-                QMessageBox.warning(self, "Error", "An error occurred while wiping data.")

@@ -80,15 +80,3 @@ class DataService(BaseService):
             logger.error(f"Failed to export ML dataset: {e}")
             return False
 
-    def wipe_all_data(self) -> bool:
-        """Wipes all data from the database."""
-        try:
-            with self.db.get_session() as session:
-                from app.database.models import StudySession
-                session.query(StudySession).delete()
-                session.commit()
-                logger.warning("All study sessions have been deleted.")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to wipe data: {e}")
-            return False

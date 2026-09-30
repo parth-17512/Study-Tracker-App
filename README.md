@@ -1,56 +1,50 @@
-# StudyTrack: Build a Better You 🚀
+# StudyTrack V2: Build a Better You 🚀
 
-StudyTrack is a comprehensive, offline-first personal desktop application designed to supercharge your productivity, rigorously track your study time, and organize your learning materials. Built with a modern dark-mode aesthetic, rock-solid reliability, and an architecture primed for future AI capabilities, StudyTrack acts as your ultimate personalized learning companion.
+StudyTrack is a comprehensive, offline-first personal desktop application designed to supercharge your productivity, rigorously track your study time, and organize your learning materials. With the massive **V2 Upgrade**, StudyTrack evolves from a simple tracker into an intelligent, AI-powered learning ecosystem with beautiful modern aesthetics, gamification, and deep analytical capabilities.
 
-Whether you are a student preparing for exams, a professional upskilling, or a lifelong learner, StudyTrack provides the structure and insights needed to achieve your goals consistently.
+Whether you are a student preparing for exams, a professional upskilling, or a lifelong learner, StudyTrack provides the structure, insights, and motivation needed to achieve your goals consistently.
 
 ---
 
-## 🌟 Why StudyTrack?
+## 🌟 What's New in V2? (The AI Revolution)
 
-**Increase Your Productivity & Focus**
-- **Deep Work Sessions**: Utilize the built-in Stopwatch and Countdown Timer to dedicate uninterrupted blocks of time to specific subjects or topics.
-- **Goal Visualization**: Setting a goal is the first step; tracking it is the next. StudyTrack's dynamic dashboards and progress rings clearly depict the hours you've conquered versus what's left for the day, week, or month.
-- **Momentum Building**: The prominent Study Streak tracking motivates you to show up every single day. 
+StudyTrack V2 introduces a suite of cutting-edge AI features, seamless UI/UX redesigns, and robust gamification designed to keep you engaged and on track.
 
-**Track Your Learning Journey**
-- **Knowledge Management**: Unlike simple timers, StudyTrack includes a fully integrated, hierarchical **Notes Module**. Create folders, drag-and-drop files, and write comprehensive study notes in a rich Markdown editor. Your study sessions and the knowledge you gain live under the same roof.
-- **Categorized Sessions**: Tag every study session with a specific topic or objective. Over time, you build a granular historical record of exactly what you studied, for how long, and when.
-- **Visual Analytics**: The GitHub-style Activity Heatmap provides a powerful, at-a-glance view of your study consistency over the past year. 
+### 🤖 AI-Powered Study Coach (RAG Integration)
+- **Deep Note Context (RAG):** The built-in AI Study Coach doesn't just give generic advice. It uses **Retrieval-Augmented Generation (ChromaDB)** to read and search through your personal Markdown notes. Ask it to "Summarize my notes on Calculus" and it will read your actual documents to construct the answer!
+- **Intelligent Intent Routing:** Powered by **TypeSafe AI's Jev model**, the AI router accurately determines what you are asking for lightning fast, instantly routing you to stats, note retrieval, or general chat.
+- **Persistent Chat History:** Your conversations with the Coach are saved locally. You can revisit past study strategies or seamlessly pick up where you left off. 
+- **AI Formatting Assistant:** Inside the Notes Editor, click the AI Format button to instantly correct spelling, fix broken list numbering, and beautifully format your raw notes using AI.
+
+### 🧠 Advanced AI Analytical Tool
+- **Streaming Live Insights:** Navigate to the Analytics tab to generate a deep-dive AI report on your study habits.
+- **Actionable Feedback:** The AI aggregates your lifetime stats, week-over-week trends, and subject distribution to identify your **Strengths**, **Weaknesses**, and actionable steps to increase your focus time. The response streams beautifully into the UI in real-time Markdown.
+
+### 🎮 Gamification & XP System
+- **Study to Level Up:** Every focused session you complete earns you XP based on the duration. 
+- **Level Progression:** Watch your level increase on the completely redesigned Dashboard. Gamifying your study habits makes consistency addictive and rewarding.
+
+### 🎨 Premium Visual Redesign
+- **Polished Dashboard:** The entire dashboard has been rebuilt into a clean, modern, and responsive 2x2 grid layout.
+- **Typographic Hierarchy:** Stunning typography, sleek horizontal progress bars, and subtle aesthetic touches make the app feel like a premium, production-ready tool.
+- **Beautiful Heatmap:** A GitHub-style Activity Heatmap tracks your daily study intensity over months and years.
 
 ---
 
 ## 🛠️ Core Features
 
 ### ⏱️ Advanced Timer & Session Tracking
-- **Stopwatch & Pomodoro-style Countdown**: Highly accurate timer engine that tracks elapsed time mathematically, preventing drift and data loss even if the app crashes.
-- **Session Topics**: Set a clear objective for every session before you click start.
-- **Seamless Recovery**: Close the app mid-session? No problem. The timer state is preserved locally and resumes perfectly upon restart.
-
-### 📊 Dashboard & Analytics
-- **At-a-Glance Dashboard**: A beautiful summary screen featuring today's stats, active study streaks, and dynamic circular progress charts showing your daily goal completion.
-- **Activity Heatmap**: A detailed visual grid tracking your daily study intensity over months and years.
-- **Historical Sessions Table**: Review past sessions, sort by duration, date, or topic, and analyze where your time is going.
+- **Stopwatch & Pomodoro-style Countdown:** Highly accurate timer engine that tracks elapsed time mathematically, preventing drift and data loss even if the app crashes.
+- **Seamless Recovery:** Close the app mid-session? No problem. The timer state is preserved locally and resumes perfectly upon restart.
 
 ### 📝 Integrated Knowledge Management (Notes)
-- **Hierarchical File Explorer**: Organize your learning materials with nested folders. Supports intuitive drag-and-drop mechanics.
-- **Rich Markdown Editor**: Write notes efficiently using a distraction-free text editor.
-- **Formatting Toolbar**: Don't want to type Markdown syntax? Use the built-in toolbar to instantly format headings, bold text, lists, check-boxes, and code blocks.
-- **Auto-Save**: Never lose your thoughts. Debounced auto-saving instantly secures your notes to the local database as you type.
+- **Hierarchical File Explorer:** Organize your learning materials with nested folders. Supports intuitive drag-and-drop mechanics.
+- **Rich Markdown Editor:** Write notes efficiently using a distraction-free text editor with a built-in formatting toolbar and live UI Markdown rendering.
+- **Auto-Save:** Never lose your thoughts. Debounced auto-saving instantly secures your notes to the local database as you type.
 
-### ⚙️ Customizable Settings
-- Manage your daily and weekly study targets dynamically.
-- Control how your progress rings display and adjust application preferences to match your workflow.
-
----
-
-## 🏗️ Architecture & Philosophy
-
-StudyTrack is built on the philosophy of **"Reliability before complexity"**.
-
-- **Offline-First & Private**: No cloud sync required, no accounts, no subscriptions. Your data lives securely on your machine using a local SQLite database.
-- **Clean Architecture**: Designed with a strict layered architecture (`UI -> Services -> Repositories -> Database`), ensuring business logic is isolated and robust.
-- **AI-Ready**: The backend services and data structures are purposefully built to support a future **Gemini AI Study Coach** integration, which will analyze your notes and study habits to provide personalized learning strategies.
+### ⚙️ Rock-Solid Architecture
+- **Offline-First & Private:** No cloud sync required, no accounts, no subscriptions. Your data lives securely on your machine using a local SQLite database.
+- **Safe Migrations:** V2 includes an automated database migration engine that detects older schema versions, safely backs up your legacy data, and seamlessly upgrades it without data loss.
 
 ---
 
@@ -60,6 +54,7 @@ StudyTrack is built on the philosophy of **"Reliability before complexity"**.
 - Python 3.12+
 - PySide6 (UI Framework)
 - SQLAlchemy (ORM)
+- google-genai, chromadb, sentence-transformers (AI & RAG)
 
 ### Development
 How to run the app in development mode from source:
@@ -77,7 +72,9 @@ How to run the app in development mode from source:
    ```bash
    pip install -r requirements.txt
    ```
-4. **Run the application**:
+4. **Configure API Keys (In-App)**:
+   - Launch the app, navigate to **Settings**, and enter your **Google Gemini API Key** and **TypeSafe API Key** to enable the AI features.
+5. **Run the application**:
    ```bash
    python main.py
    ```
@@ -87,9 +84,7 @@ You can package StudyTrack into a standalone Windows `.exe`.
 ```bash
 python build.py
 ```
-This script automates PyInstaller and produces:
-- A directory build (`dist/StudyTrack/StudyTrack.exe`)
-- A single-file executable (`dist/StudyTrack.exe`)
+This script automates PyInstaller and produces a single-file executable (`dist/StudyTrack.exe`).
 
 ---
 
@@ -98,19 +93,6 @@ This script automates PyInstaller and produces:
 StudyTrack is built around **privacy and data safety**. Your persistent user data is **never** bundled inside the temporary `.exe` directory.
 
 All persistent data is stored securely in your Windows profile:
-`%LOCALAPPDATA%\StudyTrack\`
+`%APPDATA%\StudyTrack\` (e.g., `C:\Users\<username>\AppData\Roaming\StudyTrack\`)
 
-This directory contains:
-- `studytrack.db` (Your entire study history and raw notes)
-- `logs\` (Application diagnostic logs)
-- `exports\` (Any exported data)
-- `settings.json` (Your application preferences)
-
-### Backups & Updates
-**Updating the app is safe!** Because your data lives in `%LOCALAPPDATA%`, you can download a new version of `StudyTrack.exe`, replace the old one, and launch it without losing any of your study streaks or notes.
-
-To manually back up your data, simply copy the `%LOCALAPPDATA%\StudyTrack\` folder to a secure location (like a USB drive or cloud storage).
-
----
-
-*Build a better you, one session at a time.*
+This ensures that upgrading to future versions of StudyTrack will **never** overwrite your study sessions, XP, or notes!

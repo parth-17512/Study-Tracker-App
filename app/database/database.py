@@ -4,6 +4,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config.settings import DATABASE_URL, logger
 
+from app.database.migrations import run_migrations, post_init_versioning
+
 Base = declarative_base()
 
 class Database:
@@ -23,7 +25,19 @@ class Database:
     def init_db(self):
         """Creates all tables in the database."""
         logger.info("Initializing database schema...")
+        
+        # Ensure all models are imported and registered with Base
+        import app.database.models
+        
+        # Run migrations before SQLAlchemy's create_all to allow schema evolution
+        is_existing_db = run_migrations(self.engine)
+        
         Base.metadata.create_all(bind=self.engine)
+        
+        # Mark fresh DBs with the current version
+        if not is_existing_db:
+            post_init_versioning(self.engine)
+            
         logger.info("Database schema initialized.")
 
     @contextmanager

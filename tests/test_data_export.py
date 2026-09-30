@@ -68,9 +68,3 @@ def test_export_json(data_service, tmp_path):
         assert data[0]["topic"] == "Math"
         assert data[0]["notes"] == "Calculus homework"
 
-def test_wipe_all_data(data_service, memory_db):
-    assert data_service.wipe_all_data() is True
-    
-    with memory_db.get_session() as session:
-        count = session.query(StudySession).count()
-        assert count == 0

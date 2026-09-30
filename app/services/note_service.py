@@ -1,12 +1,14 @@
 from typing import List, Optional
 from app.database.database import Database
-from app.repositories.note_repository import NoteRepository
 from app.database.models import NoteNode
+from app.services.rag_service import RAGService
 
 class NoteService:
     def __init__(self, db_override: Database = None):
         self.db = db_override or Database()
+        from app.repositories.note_repository import NoteRepository
         self.repository = NoteRepository()
+        self.rag = RAGService()
 
     def get_all_nodes(self) -> List[NoteNode]:
         """Get all nodes as a flat list. Useful for building a tree in-memory."""
@@ -36,6 +38,10 @@ class NoteService:
                 return False
             self.repository.update(session, node, {"content": content})
             session.commit()
+            
+            # Sync to RAG
+            self.rag.ingest_note(node.id, node.name, content)
+            
             return True
 
     def rename_node(self, node_id: int, new_name: str) -> bool:
@@ -75,6 +81,8 @@ class NoteService:
         with self.db.get_session() as session:
             success = self.repository.delete(session, node_id)
             session.commit()
+            if success:
+                self.rag.remove_note(node_id)
             return success
 
     def toggle_favorite(self, node_id: int, is_favorite: bool) -> bool:

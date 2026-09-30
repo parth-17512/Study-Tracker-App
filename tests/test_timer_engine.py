@@ -63,3 +63,66 @@ def test_invalid_transitions():
     engine.start_stopwatch()
     with pytest.raises(ValueError):
         engine.start_stopwatch() # Can't start while running
+
+
+def test_timer_multiple_pause_resume():
+    engine = TimerEngine()
+    engine.start_stopwatch()
+    
+    # Study 20 minutes
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=20)
+    engine.pause()
+    
+    # Wait, resume
+    engine.resume()
+    
+    # Study 40 minutes
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=40)
+    engine.complete()
+    
+    # Total elapsed should be 60 minutes = 3600 seconds
+    assert engine.accumulated_elapsed_seconds == 3600
+
+def test_timer_exact_one_hour():
+    engine = TimerEngine()
+    # If 3600 seconds countdown is started, and it naturally finishes exactly at 3600
+    engine.start_countdown(3600)
+    
+    # Move start time exactly 3600 seconds ago
+    engine.start_time = datetime.now(timezone.utc) - timedelta(seconds=3600)
+    engine.complete()
+    
+    assert engine.accumulated_elapsed_seconds == 3600
+
+def test_timer_cannot_exceed_target():
+    engine = TimerEngine()
+    engine.start_countdown(3600)
+    
+    # Timer completes while user is away (e.g. 1 hour and 40 minutes passed)
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=100)
+    engine.complete()
+    
+    # It should cap at 3600 seconds exactly
+    assert engine.accumulated_elapsed_seconds == 3600
+
+def test_notification_does_not_extend_timer():
+    engine = TimerEngine()
+    engine.start_countdown(3600)
+    
+    # Notification stays open for 10 extra minutes, then user dismisses which calls complete
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=70)
+    engine.complete()
+    
+    # The recorded duration is exactly 3600
+    assert engine.accumulated_elapsed_seconds == 3600
+
+def test_cancelled_timer_records_actual_duration():
+    engine = TimerEngine()
+    engine.start_countdown(3600)
+    
+    # Cancel after 25 minutes
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=25)
+    engine.cancel()
+    
+    assert engine.state == TimerState.CANCELLED
+    assert engine.accumulated_elapsed_seconds == 1500  # 25 * 60

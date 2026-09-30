@@ -1,11 +1,13 @@
 from datetime import datetime, timezone, timedelta
 from app.services.analytics_service import AnalyticsService
+from app.services.note_service import NoteService
 
 class AITools:
     """Read-only wrappers for exposing application stats to the AI Agent."""
     
     def __init__(self):
         self.analytics = AnalyticsService()
+        self.notes = NoteService()
         
     def get_today_stats(self) -> dict:
         """Returns the user's total study duration and session count for today."""
@@ -80,3 +82,62 @@ class AITools:
     def get_goal_progress(self) -> dict:
         """Stub for future goal tracking."""
         return {"error": "Goal tracking is currently not implemented."}
+
+    # --- Read-Only Notes Access (Phase 8) ---
+    
+    def list_notes(self) -> dict:
+        """Returns a list of all notes and folders."""
+        nodes = self.notes.get_all_nodes()
+        results = []
+        for n in nodes:
+            results.append({
+                "id": n.id,
+                "name": n.name,
+                "is_folder": n.is_folder,
+                "parent_id": n.parent_id
+            })
+        return {"nodes": results}
+        
+    def read_note(self, note_id: int) -> dict:
+        """Reads the full content of a specific note by ID."""
+        node = self.notes.get_note(note_id)
+        if not node:
+            return {"error": f"Note with ID {note_id} not found."}
+        if node.is_folder:
+            return {"error": f"ID {note_id} is a folder, not a note."}
+            
+        return {
+            "id": node.id,
+            "name": node.name,
+            "content": node.content or ""
+        }
+        
+    def search_notes(self, query: str) -> dict:
+        """Searches notes for a specific query."""
+        results = self.notes.search_notes(query)
+        matches = []
+        for n in results:
+            matches.append({
+                "id": n.id,
+                "name": n.name,
+                "content_preview": (n.content[:200] + "...") if n.content and len(n.content) > 200 else n.content
+            })
+        return {"matches": matches}
+        
+    def get_note_chunks(self, note_id: int) -> dict:
+        """Returns the note content split into smaller chunks for easier reading."""
+        # Simple paragraph chunking for now
+        node = self.notes.get_note(note_id)
+        if not node:
+            return {"error": f"Note with ID {note_id} not found."}
+        if node.is_folder:
+            return {"error": f"ID {note_id} is a folder, not a note."}
+            
+        content = node.content or ""
+        chunks = [c.strip() for c in content.split('\n\n') if c.strip()]
+        return {
+            "id": node.id,
+            "name": node.name,
+            "chunks": chunks,
+            "total_chunks": len(chunks)
+        }

@@ -1,4 +1,13 @@
 import sys
+import os
+
+# IMPORTANT: Import ML libraries BEFORE PySide6 to prevent [WinError 1114] and import hook conflicts on Windows
+try:
+    import torch
+    import chromadb
+except ImportError:
+    pass
+
 import logging
 from PySide6.QtWidgets import QApplication
 from app.ui.windows.main_window import MainWindow

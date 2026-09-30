@@ -1,10 +1,57 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, timezone
 from app.ui.theme import Theme
 from app.ui.components.card import Card
+from app.ui.components.button import PrimaryButton
 from app.ui.components.charts import BarChartWidget, DistributionChartWidget
 from app.services.analytics_service import AnalyticsService
+from app.ai.agent import StudyCoachAgent
+
+class AIInsightsWorker(QThread):
+    chunk_received = Signal(str)
+    finished = Signal()
+    error = Signal(str)
+    
+    def __init__(self, stats_context: str):
+        super().__init__()
+        self.stats_context = stats_context
+        
+    def run(self):
+        try:
+            from app.config.config_manager import ConfigManager
+            config = ConfigManager()
+            api_key = config.get("gemini_api_key", "").strip()
+            
+            if not api_key:
+                self.error.emit("Gemini API Key is not configured. Please add it in Settings.")
+                return
+                
+            from google import genai
+            
+            client = genai.Client(api_key=api_key)
+            prompt = (
+                "You are an Advanced Analytical AI for a student's study tracker app. "
+                "Based on the following stats, provide a daily summary with key insights, "
+                "identify strengths and weaknesses, suggest areas to improve, and offer "
+                "actionable advice on how to sustainably increase focus time.\n\n"
+                f"Data Context:\n{self.stats_context}\n\n"
+                "Format your response elegantly in Markdown using headers, bold text, and lists."
+            )
+            
+            response_stream = client.models.generate_content_stream(
+                model="gemini-3.6-flash",
+                contents=prompt
+            )
+            
+            for chunk in response_stream:
+                if chunk.text:
+                    self.chunk_received.emit(chunk.text)
+            
+            self.finished.emit()
+        except Exception as e:
+            # Fallback to older model if available
+            self.error.emit(str(e))
 
 class AnalyticsPage(QWidget):
     """Deep analytics and charts for study data."""
@@ -110,6 +157,29 @@ class AnalyticsPage(QWidget):
         charts_layout.addWidget(dist_card, stretch=1)
         
         self.layout.addLayout(charts_layout)
+        
+        # 4. Advanced AI Insights
+        self.ai_card = Card()
+        ai_layout = QVBoxLayout()
+        
+        lbl_ai_title = QLabel("🤖 AI Study Analysis")
+        lbl_ai_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold; font-size: 16px;")
+        ai_layout.addWidget(lbl_ai_title)
+        
+        self.btn_generate_insights = PrimaryButton("Generate AI Insights")
+        self.btn_generate_insights.clicked.connect(self.generate_insights)
+        ai_layout.addWidget(self.btn_generate_insights)
+        
+        self.lbl_ai_insights = QLabel("Click the button above to deeply analyze your study habits and get actionable advice.")
+        self.lbl_ai_insights.setWordWrap(True)
+        self.lbl_ai_insights.setTextFormat(Qt.MarkdownText)
+        self.lbl_ai_insights.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.lbl_ai_insights.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 14px; margin-top: 10px;")
+        ai_layout.addWidget(self.lbl_ai_insights)
+        
+        self.ai_card.addLayout(ai_layout)
+        self.layout.addWidget(self.ai_card)
+        
         self.layout.addStretch()
         
     def _create_stat_card(self, parent_layout, title, default_val):
@@ -187,3 +257,49 @@ class AnalyticsPage(QWidget):
             color = Theme.SUCCESS_COLOR if pct >= 0 else Theme.WARNING_COLOR
             label.setText(f"{curr_str} ({arrow} {abs(pct):.1f}%)")
             label.setStyleSheet(f"color: {color}; font-size: 18px;")
+
+    def generate_insights(self):
+        """Generates AI insights based on current analytics data."""
+        self.btn_generate_insights.setEnabled(False)
+        self.btn_generate_insights.setText("Analyzing Data... 🤔")
+        
+        # Gather context
+        now = datetime.now(timezone.utc)
+        stats = self.analytics_service.get_summary_stats()
+        comps = self.analytics_service.get_period_comparisons(now)
+        dist = self.analytics_service.get_topic_distribution()
+        
+        # Build context string
+        context = []
+        context.append(f"Total Lifetime Sessions: {stats['total_sessions']}")
+        context.append(f"Total Lifetime Focus Time (seconds): {stats['total_seconds']}")
+        context.append(f"This Week Focus Time (seconds): {comps['this_week']} (Last Week: {comps['last_week']})")
+        context.append(f"This Month Focus Time (seconds): {comps['this_month']} (Last Month: {comps['last_month']})")
+        
+        context.append("\nTime Spent per Subject (seconds):")
+        for subj, t in dist.items():
+            context.append(f"- {subj}: {t}")
+            
+        context_str = "\n".join(context)
+        
+        self.ai_worker = AIInsightsWorker(context_str)
+        self.ai_worker.chunk_received.connect(self._on_chunk_received)
+        self.ai_worker.finished.connect(self._on_insights_finished)
+        self.ai_worker.error.connect(self._on_insights_error)
+        
+        self.current_insights_text = ""
+        self.lbl_ai_insights.setText("")
+        self.ai_worker.start()
+        
+    def _on_chunk_received(self, chunk: str):
+        self.current_insights_text += chunk
+        self.lbl_ai_insights.setText(self.current_insights_text)
+        
+    def _on_insights_finished(self):
+        self.btn_generate_insights.setEnabled(True)
+        self.btn_generate_insights.setText("Regenerate AI Insights")
+        
+    def _on_insights_error(self, err: str):
+        self.btn_generate_insights.setEnabled(True)
+        self.btn_generate_insights.setText("Generate AI Insights")
+        self.lbl_ai_insights.setText(f"**Error generating insights:** {err}")

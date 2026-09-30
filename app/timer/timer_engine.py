@@ -21,6 +21,7 @@ class TimerEngine:
         # Accumulates paused duration so elapsed time calculations remain accurate
         self.paused_at: Optional[datetime] = None
         self.accumulated_elapsed_seconds: int = 0
+        self.target_duration: Optional[int] = None
         
         # Optional metadata
         self.subject_id: Optional[int] = None
@@ -35,6 +36,7 @@ class TimerEngine:
         self.state = TimerState.RUNNING
         self.start_time = utc_now()
         self.target_end_time = None
+        self.target_duration = None
         self.paused_at = None
         self.accumulated_elapsed_seconds = 0
         self.subject_id = subject_id
@@ -52,6 +54,7 @@ class TimerEngine:
         self.state = TimerState.RUNNING
         now = utc_now()
         self.start_time = now
+        self.target_duration = duration_seconds
         self.target_end_time = datetime.fromtimestamp(now.timestamp() + duration_seconds, tz=timezone.utc)
         self.paused_at = None
         self.accumulated_elapsed_seconds = 0
@@ -63,10 +66,10 @@ class TimerEngine:
         if self.state != TimerState.RUNNING:
             raise ValueError(f"Cannot pause from state {self.state}")
             
-        self.state = TimerState.PAUSED
         self.paused_at = utc_now()
         # Save exact elapsed time at moment of pause
         self.accumulated_elapsed_seconds = self.get_elapsed_seconds(self.paused_at)
+        self.state = TimerState.PAUSED
 
     def resume(self):
         if self.state != TimerState.PAUSED:
@@ -94,6 +97,11 @@ class TimerEngine:
             
         # Update elapsed time one last time before finalizing
         self.accumulated_elapsed_seconds = self.get_elapsed_seconds()
+        
+        # Enforce exact completion duration for countdowns
+        if self.mode == TimerMode.COUNTDOWN and self.target_duration:
+            self.accumulated_elapsed_seconds = self.target_duration
+            
         self.state = TimerState.COMPLETED
 
     def cancel(self):
@@ -108,6 +116,7 @@ class TimerEngine:
         self.state = TimerState.IDLE
         self.start_time = None
         self.target_end_time = None
+        self.target_duration = None
         self.paused_at = None
         self.accumulated_elapsed_seconds = 0
 
@@ -125,7 +134,15 @@ class TimerEngine:
             
         # Accumulated time + time since last start/resume
         current_segment_elapsed = max(0.0, (now - self.start_time).total_seconds())
-        return self.accumulated_elapsed_seconds + math.floor(current_segment_elapsed)
+        elapsed = self.accumulated_elapsed_seconds + math.floor(current_segment_elapsed)
+        
+        # If countdown and elapsed exceeds target duration, cap it
+        if self.mode == TimerMode.COUNTDOWN and self.target_duration:
+            if elapsed >= self.target_duration:
+                # To handle Bug B (59:59), we ensure it hits exactly the target
+                return self.target_duration
+        
+        return elapsed
 
     def get_remaining_seconds(self) -> int:
         """Returns the remaining time in seconds for countdown mode. 0 for stopwatch."""
@@ -159,6 +176,7 @@ class TimerEngine:
 
         self.start_time = ensure_tz(state_data.get('start_time'))
         self.target_end_time = ensure_tz(state_data.get('target_end_time'))
+        self.target_duration = state_data.get('target_duration')
         self.paused_at = ensure_tz(state_data.get('paused_at'))
         
         self.accumulated_elapsed_seconds = state_data.get('accumulated_elapsed_seconds', 0)
@@ -178,6 +196,7 @@ class TimerEngine:
             'mode': self.mode.value,
             'start_time': self.start_time,
             'target_end_time': self.target_end_time,
+            'target_duration': self.target_duration,
             'paused_at': self.paused_at,
             'accumulated_elapsed_seconds': self.accumulated_elapsed_seconds,
             'subject_id': self.subject_id,

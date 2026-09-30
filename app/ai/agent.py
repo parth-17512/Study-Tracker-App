@@ -39,6 +39,32 @@ class StudyCoachAgent:
                 "parameters": {
                     "limit": "integer (optional, default 5)"
                 }
+            },
+            {
+                "name": "list_notes",
+                "description": "Get a list of all notes and folders the user has created.",
+                "parameters": {}
+            },
+            {
+                "name": "read_note",
+                "description": "Read the entire content of a specific note by ID.",
+                "parameters": {
+                    "note_id": "integer"
+                }
+            },
+            {
+                "name": "search_notes",
+                "description": "Search across all notes for a specific query.",
+                "parameters": {
+                    "query": "string"
+                }
+            },
+            {
+                "name": "get_note_chunks",
+                "description": "Get note content split into smaller reading chunks by ID.",
+                "parameters": {
+                    "note_id": "integer"
+                }
             }
         ]
         
@@ -65,6 +91,14 @@ class StudyCoachAgent:
                 return self.tools.get_subject_stats()
             elif tool_name == "get_goal_progress":
                 return self.tools.get_goal_progress()
+            elif tool_name == "list_notes":
+                return self.tools.list_notes()
+            elif tool_name == "read_note":
+                return self.tools.read_note(int(kwargs.get("note_id", 0)))
+            elif tool_name == "search_notes":
+                return self.tools.search_notes(str(kwargs.get("query", "")))
+            elif tool_name == "get_note_chunks":
+                return self.tools.get_note_chunks(int(kwargs.get("note_id", 0)))
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
         except Exception as e:
@@ -75,3 +109,24 @@ class StudyCoachAgent:
         """Processes a natural language prompt using the configured LLM Provider."""
         schema = self.get_available_tools()
         return self.provider.generate_response(prompt, schema, self.execute_tool)
+
+    def format_note(self, content: str) -> str:
+        """
+        Formats a user's markdown note according to strict preservation rules.
+        """
+        prompt = f"""You are a strict formatting assistant. Your job is to format the following markdown notes.
+RULES:
+1. Preserve the meaning of the user's notes.
+2. Do not add facts.
+3. Do not remove ideas.
+4. Do not invent relationships.
+5. Correct spelling and obvious grammar errors.
+6. Correct numbering.
+7. Correct indentation.
+8. Improve structure only when supported by the existing content.
+9. ONLY output the final formatted markdown. Do not include introductory or concluding conversational text.
+
+ORIGINAL NOTES:
+{content}
+"""
+        return self.provider.generate_response(prompt, [], lambda x, **kw: {})
