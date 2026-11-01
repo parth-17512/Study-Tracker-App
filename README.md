@@ -72,8 +72,10 @@ How to run the app in development mode from source:
    ```bash
    pip install -r requirements.txt
    ```
-4. **Configure API Keys (In-App)**:
-   - Launch the app, navigate to **Settings**, and enter your **Google Gemini API Key** and **TypeSafe API Key** to enable the AI features.
+4. **Configure AI providers (optional)**:
+   - Open **Settings → AI Study Coach & LLM Providers**. Configure your Gemini API key and explicitly enable cloud context consent. Gemini is tried first by default.
+   - Optionally configure another hosted service that implements the OpenAI-compatible `POST /chat/completions` API: enter its HTTPS base URL, API key, model ID, and display name. This supports compatible APIs only, not every provider's proprietary API format. Verify each vendor's current free-tier, usage limits, and terms; StudyTrack cannot guarantee free or unlimited tokens.
+   - Choose Gemini-first fallback, compatible-API-first fallback, or a single-provider mode in Settings. Failures, rate limits, and quota errors advance to the next enabled provider. If none succeeds, data-backed Coach summaries remain available and provider failures are reported.
 5. **Run the application**:
    ```bash
    python main.py
@@ -84,7 +86,7 @@ You can package StudyTrack into a standalone Windows `.exe`.
 ```bash
 python build.py
 ```
-This script automates PyInstaller and produces a single-file executable (`dist/StudyTrack.exe`).
+This script automates PyInstaller and produces both a single-file executable (`dist/StudyTrack.exe`) and an onedir build (`dist/StudyTrack/StudyTrack.exe`).
 
 ---
 

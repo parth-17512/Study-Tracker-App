@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QCheckBox, QPushButton, QMessageBox, QFileDialog, QLineEdit, QGroupBox
+    QCheckBox, QPushButton, QMessageBox, QFileDialog, QLineEdit, QGroupBox, QComboBox
 )
 from PySide6.QtCore import Qt
 from app.ui.theme import Theme
@@ -121,45 +121,96 @@ class SettingsPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         
-        title = QLabel("AI Study Coach Configuration")
+        title = QLabel("AI Study Coach & LLM Providers")
         title.setObjectName("CardTitle")
+        title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 20px; font-weight: bold;")
         layout.addWidget(title)
         
+        desc = QLabel("Use Google Gemini and optionally a compatible hosted API as a fallback when a provider is unavailable or reaches its quota.")
+        desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 13px;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        # Provider Priority
+        priority_layout = QHBoxLayout()
+        priority_label = QLabel("Provider Priority:")
+        priority_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        self.priority_combo = QComboBox()
+        self.priority_combo.addItem("Google Gemini → Compatible API fallback", "gemini_first")
+        self.priority_combo.addItem("Compatible API → Gemini fallback", "compatible_api_first")
+        self.priority_combo.addItem("Google Gemini only", "gemini_only")
+        self.priority_combo.addItem("Compatible API only", "compatible_api_only")
+        self.priority_combo.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 6px; border-radius: 4px;")
+
+        curr_prio = self.config_manager.get("llm_provider_priority", "gemini_first")
+        idx = self.priority_combo.findData(curr_prio)
+        if idx >= 0:
+            self.priority_combo.setCurrentIndex(idx)
+        self.priority_combo.currentIndexChanged.connect(self.save_settings)
+        priority_layout.addWidget(priority_label)
+        priority_layout.addWidget(self.priority_combo)
+        layout.addLayout(priority_layout)
+
+        # Gemini Cloud Section Header
+        lbl_gemini = QLabel("Cloud LLM (Google Gemini)")
+        lbl_gemini.setStyleSheet(f"color: {Theme.PRIMARY_ACCENT}; font-size: 16px; font-weight: bold; margin-top: 10px;")
+        layout.addWidget(lbl_gemini)
+
         key_layout = QHBoxLayout()
         key_label = QLabel("Google Gemini API Key:")
         key_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
         self.api_key_input = QLineEdit()
         self.api_key_input.setEchoMode(QLineEdit.Password)
-        self.api_key_input.setPlaceholderText("Enter your API Key here...")
+        self.api_key_input.setPlaceholderText("Enter your Google Gemini API Key...")
         self.api_key_input.setText(self.config_manager.get("gemini_api_key", ""))
+        self.api_key_input.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 6px;")
         self.api_key_input.textChanged.connect(self.save_settings)
         
         key_layout.addWidget(key_label)
         key_layout.addWidget(self.api_key_input)
         layout.addLayout(key_layout)
         
-        # TypeSafe API Key
-        ts_layout = QHBoxLayout()
-        ts_label = QLabel("TypeSafe API Key (Jev Router):")
-        ts_label.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
-        self.typesafe_key_input = QLineEdit()
-        self.typesafe_key_input.setEchoMode(QLineEdit.Password)
-        self.typesafe_key_input.setPlaceholderText("Enter TypeSafe API Key...")
-        self.typesafe_key_input.setText(self.config_manager.get("typesafe_api_key", ""))
-        self.typesafe_key_input.textChanged.connect(self.save_settings)
+        # Cloud Privacy Consent
+        self.chk_cloud_consent = QCheckBox("Allow sending study context to Gemini and compatible API providers")
+        self.chk_cloud_consent.setStyleSheet(f"color: {Theme.TEXT_PRIMARY};")
+        self.chk_cloud_consent.setChecked(self.config_manager.get("cloud_consent", False))
+        self.chk_cloud_consent.toggled.connect(self.save_settings)
+        layout.addWidget(self.chk_cloud_consent)
+
+        lbl_compatible = QLabel("Other OpenAI-compatible hosted APIs")
+        lbl_compatible.setStyleSheet(f"color: {Theme.PRIMARY_ACCENT}; font-size: 16px; font-weight: bold; margin-top: 10px;")
+        layout.addWidget(lbl_compatible)
+        compatible_note = QLabel(
+            "Configure any service that implements POST /chat/completions. Check the provider's current free-tier, rate limits, and terms; availability and free quotas vary."
+        )
+        compatible_note.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
+        compatible_note.setWordWrap(True)
+        layout.addWidget(compatible_note)
+        self.compatible_api_label_input = QLineEdit(self.config_manager.get("compatible_api_label", "Compatible API"))
+        self.compatible_api_label_input.setPlaceholderText("Provider display name")
+        self.compatible_api_base_url_input = QLineEdit(self.config_manager.get("compatible_api_base_url", ""))
+        self.compatible_api_base_url_input.setPlaceholderText("HTTPS base URL, e.g. https://api.provider.example/v1")
+        self.compatible_api_model_input = QLineEdit(self.config_manager.get("compatible_api_model", ""))
+        self.compatible_api_model_input.setPlaceholderText("Model ID")
+        self.compatible_api_key_input = QLineEdit(self.config_manager.get("compatible_api_key", ""))
+        self.compatible_api_key_input.setEchoMode(QLineEdit.Password)
+        self.compatible_api_key_input.setPlaceholderText("Provider API key")
+        for field in (
+            self.compatible_api_label_input,
+            self.compatible_api_base_url_input,
+            self.compatible_api_model_input,
+            self.compatible_api_key_input,
+        ):
+            field.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; color: {Theme.TEXT_PRIMARY}; padding: 6px;")
+            field.textChanged.connect(self.save_settings)
+            layout.addWidget(field)
         
-        ts_layout.addWidget(ts_label)
-        ts_layout.addWidget(self.typesafe_key_input)
-        layout.addLayout(ts_layout)
-        
-        info = QLabel("Gemini is used for conversational generation. TypeSafe Jev is used for instantaneous intent routing.")
-        info.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; font-style: italic;")
-        info.setWordWrap(True)
-        layout.addWidget(info)
-        
+        btn_layout = QHBoxLayout()
         btn_rebuild_rag = SecondaryButton("Rebuild Knowledge Index")
         btn_rebuild_rag.clicked.connect(self.rebuild_rag_index)
-        layout.addWidget(btn_rebuild_rag)
+        btn_layout.addWidget(btn_rebuild_rag)
+        btn_layout.addStretch()
+        layout.addLayout(btn_layout)
         
     def rebuild_rag_index(self):
         try:
@@ -176,7 +227,16 @@ class SettingsPage(QWidget):
         self.config_manager.set("notifications_enabled", notif)
         self.config_manager.set("desktop_notifications", notif)
         self.config_manager.set("gemini_api_key", self.api_key_input.text())
-        self.config_manager.set("typesafe_api_key", self.typesafe_key_input.text())
+        if hasattr(self, 'priority_combo'):
+            self.config_manager.set("llm_provider_priority", self.priority_combo.currentData())
+        if hasattr(self, 'compatible_api_base_url_input'):
+            self.config_manager.set("compatible_api_label", self.compatible_api_label_input.text().strip())
+            self.config_manager.set("compatible_api_base_url", self.compatible_api_base_url_input.text().strip())
+            self.config_manager.set("compatible_api_key", self.compatible_api_key_input.text().strip())
+            self.config_manager.set("compatible_api_model", self.compatible_api_model_input.text().strip())
+        if hasattr(self, 'chk_cloud_consent'):
+            self.config_manager.set("cloud_consent", self.chk_cloud_consent.isChecked())
+            self.config_manager.set("cloud_consent_configured", True)
         
     def export_csv(self):
         filepath, _ = QFileDialog.getSaveFileName(self, "Export CSV", "", "CSV Files (*.csv)")

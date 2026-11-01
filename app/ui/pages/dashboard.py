@@ -28,7 +28,6 @@ class DashboardPage(QWidget):
         scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
         
         scroll_content = QWidget()
-        scroll_content.setMinimumWidth(800)
         self.layout = QVBoxLayout(scroll_content)
         self.layout.setContentsMargins(Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE, Theme.SPACING_LARGE)
         self.layout.setSpacing(Theme.SPACING_LARGE)
@@ -175,28 +174,7 @@ class DashboardPage(QWidget):
         # Add grid to main layout
         self.layout.addLayout(grid)
         
-        # 3. Bottom Row (Recent Activity + Heatmap)
-        bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(Theme.SPACING_LARGE)
-        
-        # 3a. Recent Sessions
-        self.recent_card = Card()
-        recent_layout = QVBoxLayout()
-        
-        lbl_recent_title = QLabel("RECENT ACTIVITY")
-        lbl_recent_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold; font-size: 12px; letter-spacing: 1px; margin-bottom: 8px;")
-        recent_layout.addWidget(lbl_recent_title)
-        
-        self.recent_list_layout = QVBoxLayout()
-        self.recent_list_layout.setSpacing(16)
-        
-        recent_layout.addLayout(self.recent_list_layout)
-        recent_layout.addStretch()
-        self.recent_card.addLayout(recent_layout)
-        
-        bottom_layout.addWidget(self.recent_card, stretch=1)
-        
-        # 3b. Heatmap Activity
+        # 3. Full-width study contribution graph
         heatmap_card = Card()
         heatmap_layout = QVBoxLayout()
         
@@ -206,16 +184,13 @@ class DashboardPage(QWidget):
         
         from app.ui.components.heatmap import HeatmapWidget
         self.heatmap = HeatmapWidget(daily_goal_seconds=self.daily_goal_seconds)
+        self.heatmap.setMinimumHeight(260)
         self.heatmap.year_changed.connect(self.load_heatmap_data)
         self.heatmap.day_clicked.connect(self.show_daily_sessions)
         
         heatmap_layout.addWidget(self.heatmap)
-        heatmap_layout.addStretch()
         heatmap_card.addLayout(heatmap_layout)
-        
-        bottom_layout.addWidget(heatmap_card, stretch=2)
-        
-        self.layout.addLayout(bottom_layout)
+        self.layout.addWidget(heatmap_card, stretch=1)
         self.layout.addStretch()
 
     def update_daily_goal(self):
@@ -282,43 +257,5 @@ class DashboardPage(QWidget):
         self.xp_progress.setMaximum(req)
         self.xp_progress.setValue(current_xp)
         
-        # Recent Sessions
-        recent = self.analytics_service.get_recent_sessions(limit=5)
-        
         # Heatmap
         self.load_heatmap_data(self.heatmap.current_year)
-        
-        # Clear existing
-        while self.recent_list_layout.count():
-            child = self.recent_list_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-                
-        if not recent:
-            lbl_empty = QLabel("No study sessions recorded yet.\n\nStart your first session to see it.")
-            lbl_empty.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 14px; line-height: 1.5;")
-            self.recent_list_layout.addWidget(lbl_empty)
-        else:
-            for session in recent:
-                from app.utils.time_utils import to_local_time
-                local_start = to_local_time(session.start_time)
-                date_str = local_start.strftime("%b %d") if local_start else ""
-                dur = session.duration_seconds or 0
-                dur_str = f"{dur//3600}h {(dur%3600)//60}m" if dur >= 3600 else f"{dur//60}m"
-                topic = session.topic or "Focus Session"
-                
-                row = QWidget()
-                row_layout = QHBoxLayout(row)
-                row_layout.setContentsMargins(0, 0, 0, 0)
-                
-                lbl_topic = QLabel(topic)
-                lbl_topic.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 14px; font-weight: bold;")
-                
-                lbl_meta = QLabel(f"{date_str} • {dur_str}")
-                lbl_meta.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
-                lbl_meta.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                
-                row_layout.addWidget(lbl_topic, stretch=1)
-                row_layout.addWidget(lbl_meta)
-                
-                self.recent_list_layout.addWidget(row)

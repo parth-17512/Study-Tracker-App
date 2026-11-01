@@ -1,6 +1,9 @@
-from PySide6.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QComboBox, QScrollArea, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
+    QComboBox, QScrollArea, QSizePolicy
+)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor
 from datetime import date, timedelta
 from app.ui.theme import Theme
 
@@ -11,41 +14,44 @@ class DayCell(QFrame):
     def __init__(self, day_date: date, parent=None):
         super().__init__(parent)
         self.day_date = day_date
-        self.setFixedSize(18, 18)
+        self.setFixedSize(16, 16)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        # Default empty state
-        self.setStyleSheet("background-color: #2a2b33; border-radius: 4px;")
+        self.setStyleSheet("background-color: #2a2b33; border-radius: 3px;")
         
     def set_intensity(self, duration_seconds: int, daily_goal_seconds: int):
-        """Sets the background color based on study intensity."""
+        """Sets the background color and rich tooltip based on study intensity."""
+        date_str = self.day_date.strftime("%A, %b %d, %Y")
         if duration_seconds == 0:
-            self.setStyleSheet("background-color: #2a2b33; border-radius: 4px;")
-            self.setToolTip(f"{self.day_date.strftime('%b %d, %Y')}: No activity")
+            self.setStyleSheet("background-color: #2a2b33; border-radius: 3px;")
+            self.setToolTip(f"{date_str}\nNo study activity recorded")
             return
             
-        # Avoid division by zero
         if daily_goal_seconds <= 0:
-            daily_goal_seconds = 1
+            daily_goal_seconds = 7200
             
         ratio = duration_seconds / daily_goal_seconds
         
-        # Custom green color scale to match Heat.js reference
+        # GitHub-style 4-level green intensity scale
         if ratio < 0.25:
             color = "#486749"  # Level 1
+            lvl_name = "Light"
         elif ratio < 0.50:
             color = "#588c5a"  # Level 2
+            lvl_name = "Moderate"
         elif ratio < 0.75:
             color = "#68b26a"  # Level 3
+            lvl_name = "Strong"
         else:
             color = "#7ade7f"  # Level 4
+            lvl_name = "Goal Reached"
             
-        self.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
+        self.setStyleSheet(f"background-color: {color}; border-radius: 3px;")
         
-        # Update tooltip
         h = duration_seconds // 3600
         m = (duration_seconds % 3600) // 60
         time_str = f"{h}h {m}m" if h > 0 else f"{m}m"
-        self.setToolTip(f"{self.day_date.strftime('%b %d, %Y')}: {time_str}")
+        pct_str = f"{int(ratio * 100)}%"
+        self.setToolTip(f"{date_str}\n{time_str} focus time ({pct_str} of goal - {lvl_name})\nClick to view sessions")
         
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -53,23 +59,22 @@ class DayCell(QFrame):
         super().mousePressEvent(event)
 
 class HeatmapWidget(QWidget):
-    """GitHub-style activity heatmap for a full year."""
+    """Expanded GitHub-style activity contribution graph for a full year."""
     
-    day_clicked = Signal(date) # Signal emitted when a day is clicked
+    day_clicked = Signal(date)
     year_changed = Signal(int)
     
     def __init__(self, daily_goal_seconds: int = 7200, parent=None):
         super().__init__(parent)
         self.daily_goal_seconds = daily_goal_seconds
         self.current_year = date.today().year
-        self.setMinimumHeight(180)
+        self.setMinimumHeight(210)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(12, 12, 12, 12)
-        self.main_layout.setSpacing(Theme.SPACING_SMALL)
+        self.main_layout.setContentsMargins(16, 16, 16, 16)
+        self.main_layout.setSpacing(Theme.SPACING_REGULAR)
         
-        # Give the whole widget a card-like background matching the image
         self.setStyleSheet(f"""
             HeatmapWidget {{
                 background-color: #21252b;
@@ -81,18 +86,22 @@ class HeatmapWidget(QWidget):
         self.setup_ui()
         
     def setup_ui(self):
-        # Top Header (Title + Year Selector)
+        # Top Header (Title + Summary Stats + Year Selector)
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
         
-        title = QLabel("Study Activity")
+        title = QLabel("Study Consistency Contribution Graph")
         title.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-weight: bold; font-size: 16px; background: transparent;")
         header_layout.addWidget(title)
+
+        self.lbl_stats = QLabel("Loading activity...")
+        self.lbl_stats.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 13px; background: transparent;")
+        header_layout.addWidget(self.lbl_stats)
         
         header_layout.addStretch()
         
         self.year_combo = QComboBox()
-        # Add current year and past 2 years
-        for y in range(self.current_year, self.current_year - 3, -1):
+        for y in range(self.current_year, self.current_year - 4, -1):
             self.year_combo.addItem(str(y), y)
         
         self.year_combo.setStyleSheet(f"""
@@ -101,7 +110,8 @@ class HeatmapWidget(QWidget):
                 color: {Theme.TEXT_PRIMARY};
                 border: 1px solid {Theme.BORDER_COLOR};
                 border-radius: 4px;
-                padding: 4px;
+                padding: 4px 8px;
+                font-weight: bold;
             }}
         """)
         self.year_combo.currentIndexChanged.connect(self.on_year_combo_changed)
@@ -113,15 +123,15 @@ class HeatmapWidget(QWidget):
         self.grid_widget = QWidget()
         self.grid_widget.setStyleSheet("background: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
-        self.grid_layout.setContentsMargins(0, 0, 0, 0)
+        self.grid_layout.setContentsMargins(0, 4, 0, 4)
         self.grid_layout.setSpacing(4)
         
         # Weekday Labels
         days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for r, d in enumerate(days):
             lbl = QLabel(d)
-            lbl.setStyleSheet(f"color: #8b929c; font-size: 11px; background: transparent;")
-            self.grid_layout.addWidget(lbl, r + 1, 0) # +1 because row 0 is for months
+            lbl.setStyleSheet("color: #8b929c; font-size: 11px; background: transparent;")
+            self.grid_layout.addWidget(lbl, r + 1, 0)
                 
         self.heatmap_scroll = QScrollArea()
         self.heatmap_scroll.setWidgetResizable(True)
@@ -137,24 +147,30 @@ class HeatmapWidget(QWidget):
         legend_layout.addStretch()
         
         less_lbl = QLabel("Less")
-        less_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
+        less_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px; background: transparent;")
         legend_layout.addWidget(less_lbl)
+
+        # Empty swatch
+        empty_swatch = QFrame()
+        empty_swatch.setFixedSize(14, 14)
+        empty_swatch.setStyleSheet("background-color: #2a2b33; border-radius: 3px;")
+        empty_swatch.setToolTip("No activity")
+        legend_layout.addWidget(empty_swatch)
         
         legend_colors = ["#486749", "#588c5a", "#68b26a", "#7ade7f"]
         for color in legend_colors:
             swatch = QFrame()
             swatch.setFixedSize(14, 14)
-            swatch.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
+            swatch.setStyleSheet(f"background-color: {color}; border-radius: 3px;")
             legend_layout.addWidget(swatch)
             
         more_lbl = QLabel("More")
-        more_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; background: transparent;")
+        more_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px; background: transparent;")
         legend_layout.addWidget(more_lbl)
         
         self.main_layout.addLayout(legend_layout)
         
-        # We will generate the grid dynamically when data is loaded
-        self.cells = {} # mapping date -> DayCell
+        self.cells = {}
 
     def on_year_combo_changed(self, index):
         year = self.year_combo.currentData()
@@ -163,43 +179,40 @@ class HeatmapWidget(QWidget):
             self.year_changed.emit(year)
 
     def render_grid(self, year: int, data: dict):
-        """Builds the 365/366 day grid for the given year and populates colors."""
-        # Clear existing cells
+        """Builds the 365/366 day grid for the given year and updates summary."""
         for cell in self.cells.values():
             self.grid_layout.removeWidget(cell)
             cell.deleteLater()
         self.cells.clear()
         
-        # Calculate start date (Jan 1)
-        start_date = date(year, 1, 1)
+        # Compute summary stats for the year
+        total_seconds = sum(data.values())
+        active_days = sum(1 for s in data.values() if s > 0)
+        total_h = total_seconds // 3600
+        total_m = (total_seconds % 3600) // 60
+        dur_str = f"{total_h}h {total_m}m" if total_h > 0 else f"{total_m}m"
         
-        # Find the monday of that week (0 = Monday, 6 = Sunday)
+        self.lbl_stats.setText(f"• {active_days} active study days • {dur_str} total focus in {year}")
+
+        start_date = date(year, 1, 1)
         day_of_week = start_date.weekday()
         current_date = start_date
         
         col = 1
-        row = day_of_week + 1 # +1 to leave row 0 for months
-        
+        row = day_of_week + 1
         months_added = set()
         
-        # Draw all days in the year
         while current_date.year == year:
-            # Check if this is the start of a month or the first cell (so we place a month label)
             if current_date.day == 1 or (current_date == start_date):
                 if current_date.month not in months_added:
-                    # Place month label
                     m_lbl = QLabel(current_date.strftime("%b"))
-                    m_lbl.setStyleSheet(f"color: #8b929c; font-size: 11px; background: transparent;")
+                    m_lbl.setStyleSheet("color: #8b929c; font-size: 11px; font-weight: bold; background: transparent;")
                     self.grid_layout.addWidget(m_lbl, 0, col)
                     months_added.add(current_date.month)
             
             cell = DayCell(current_date)
-            
-            # Fetch data
             duration = data.get(current_date, 0)
             cell.set_intensity(duration, self.daily_goal_seconds)
-            
-            # Connect signal
             cell.clicked.connect(self.day_clicked.emit)
             
             self.grid_layout.addWidget(cell, row, col)
@@ -207,7 +220,6 @@ class HeatmapWidget(QWidget):
             
             current_date += timedelta(days=1)
             row += 1
-            if row > 7: # Rows are 1-7 (Mon-Sun)
+            if row > 7:
                 row = 1
                 col += 1
-

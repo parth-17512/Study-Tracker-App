@@ -1,7 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union
+from datetime import datetime, date, timezone
 from app.database.database import Database
 from app.database.models import NoteNode
 from app.services.rag_service import RAGService
+from app.utils.time_utils import to_local_time
 
 class NoteService:
     def __init__(self, db_override: Database = None):
@@ -126,3 +128,63 @@ class NoteService:
             nodes = self.repository.get_favorites(session)
             session.expunge_all()
             return nodes
+
+    def _resolve_tz(self, tz):
+        if tz is not None:
+            return tz
+        return datetime.now().astimezone().tzinfo
+
+    def _parse_date(self, d: Union[str, date, datetime]) -> date:
+        if isinstance(d, datetime):
+            return d.date()
+        if isinstance(d, date):
+            return d
+        if isinstance(d, str):
+            # Try YYYY-MM-DD
+            try:
+                return datetime.strptime(d.strip()[:10], "%Y-%m-%d").date()
+            except Exception:
+                pass
+        return datetime.now().date()
+
+    def get_notes_by_date(self, target_date: Union[str, date, datetime], tz=None, filter_by: str = "created_or_updated") -> List[Dict[str, Any]]:
+        """
+        Retrieves notes created or updated on a target date, respecting local timezone.
+        Returns serialized dicts with folder metadata.
+        """
+        d = self._parse_date(target_date)
+        return self.get_notes_by_date_range(d, d, tz=tz, filter_by=filter_by)
+
+    def get_notes_by_date_range(self, start_date: Union[str, date, datetime], end_date: Union[str, date, datetime], tz=None, filter_by: str = "created_or_updated") -> List[Dict[str, Any]]:
+        """
+        Retrieves notes created or updated between start_date and end_date (inclusive), respecting local timezone.
+        """
+        s_date = self._parse_date(start_date)
+        e_date = self._parse_date(end_date)
+
+        target_tz = self._resolve_tz(tz)
+
+        start_local = datetime(s_date.year, s_date.month, s_date.day, 0, 0, 0, tzinfo=target_tz)
+        end_local = datetime(e_date.year, e_date.month, e_date.day, 23, 59, 59, 999999, tzinfo=target_tz)
+
+        start_utc = start_local.astimezone(timezone.utc)
+        end_utc = end_local.astimezone(timezone.utc)
+
+        with self.db.get_session() as session:
+            nodes = self.repository.get_by_date_range(session, start_utc, end_utc, filter_by=filter_by)
+            results = []
+            for node in nodes:
+                folder_name = node.parent.name if node.parent else "Root"
+                created_local = to_local_time(node.created_at, tz=target_tz)
+                updated_local = to_local_time(node.updated_at, tz=target_tz)
+                results.append({
+                    "id": node.id,
+                    "name": node.name,
+                    "content": node.content or "",
+                    "folder": folder_name,
+                    "is_favorite": node.is_favorite,
+                    "created_at": created_local.isoformat() if created_local else None,
+                    "updated_at": updated_local.isoformat() if updated_local else None,
+                    "date": created_local.strftime("%Y-%m-%d") if created_local else None
+                })
+            return results

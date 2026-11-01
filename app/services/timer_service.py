@@ -31,6 +31,14 @@ class TimerService(BaseService):
         self.engine.resume()
         self._persist_state()
 
+    def update_active_topic(self, topic: str) -> bool:
+        """Updates and persists the topic of the active timer."""
+        clean_topic = topic.strip() if topic else None
+        self.engine.topic = clean_topic
+        if self.engine.state in (TimerState.RUNNING, TimerState.PAUSED):
+            self._persist_state()
+        return True
+
     def complete(self):
         """Completes the timer, saves the session to the DB, and clears the active timer state."""
         self.engine.complete()

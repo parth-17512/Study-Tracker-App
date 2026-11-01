@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from app.ai.tools import AITools
 from app.ai.providers.base import LLMProvider
 
@@ -11,8 +11,8 @@ class StudyCoachAgent:
     via the AITools sandbox.
     """
     
-    def __init__(self, provider: LLMProvider):
-        self.tools = AITools()
+    def __init__(self, provider: LLMProvider, tools: Optional[AITools] = None):
+        self.tools = tools or AITools()
         self.provider = provider
         
     def get_available_tools(self) -> list:
@@ -20,13 +20,28 @@ class StudyCoachAgent:
         return [
             {
                 "name": "get_today_stats",
-                "description": "Get study duration and session count for today.",
+                "description": "Get study duration, session count, and subjects studied today.",
                 "parameters": {}
             },
             {
                 "name": "get_week_stats",
-                "description": "Get total study duration for the current week.",
+                "description": "Get total study duration for the current trailing 7 days.",
                 "parameters": {}
+            },
+            {
+                "name": "get_week_by_week_stats",
+                "description": "Get week-by-week study analysis for the last 4 weeks with dates and subject breakdowns.",
+                "parameters": {
+                    "num_weeks": "integer (optional, default 4)"
+                }
+            },
+            {
+                "name": "get_subject_stats",
+                "description": "Get study duration breakdown by subject/topic, including most and least studied subjects.",
+                "parameters": {
+                    "start_date": "string YYYY-MM-DD (optional)",
+                    "end_date": "string YYYY-MM-DD (optional)"
+                }
             },
             {
                 "name": "get_streak",
@@ -38,6 +53,26 @@ class StudyCoachAgent:
                 "description": "Get a list of the most recent study sessions.",
                 "parameters": {
                     "limit": "integer (optional, default 5)"
+                }
+            },
+            {
+                "name": "get_notes_today",
+                "description": "Get all notes written or edited today.",
+                "parameters": {}
+            },
+            {
+                "name": "get_notes_by_date",
+                "description": "Get all notes written or edited on a specific date (YYYY-MM-DD).",
+                "parameters": {
+                    "target_date": "string (format YYYY-MM-DD)"
+                }
+            },
+            {
+                "name": "get_notes_by_date_range",
+                "description": "Get notes written or edited between start_date and end_date.",
+                "parameters": {
+                    "start_date": "string (YYYY-MM-DD)",
+                    "end_date": "string (YYYY-MM-DD)"
                 }
             },
             {
@@ -73,24 +108,37 @@ class StudyCoachAgent:
         Safely routes a tool execution request from the LLM to the underlying 
         sandbox tools.
         """
-        logger.info(f"AI Agent executing tool: {tool_name} with args: {kwargs}")
+        logger.info("AI Agent executing tool: %s", tool_name)
         
         try:
             if tool_name == "get_today_stats":
                 return self.tools.get_today_stats()
             elif tool_name == "get_week_stats":
                 return self.tools.get_week_stats()
+            elif tool_name == "get_week_by_week_stats":
+                num_weeks = int(kwargs.get("num_weeks", 4))
+                return self.tools.get_week_by_week_stats(num_weeks)
+            elif tool_name == "get_subject_stats":
+                return self.tools.get_subject_stats(
+                    start_date=kwargs.get("start_date"),
+                    end_date=kwargs.get("end_date")
+                )
             elif tool_name == "get_month_stats":
                 return self.tools.get_month_stats()
             elif tool_name == "get_streak":
                 return self.tools.get_streak()
             elif tool_name == "get_recent_sessions":
-                limit = kwargs.get("limit", 5)
+                limit = int(kwargs.get("limit", 5))
                 return {"sessions": self.tools.get_recent_sessions(limit)}
-            elif tool_name == "get_subject_stats":
-                return self.tools.get_subject_stats()
-            elif tool_name == "get_goal_progress":
-                return self.tools.get_goal_progress()
+            elif tool_name == "get_notes_today":
+                return self.tools.get_notes_today()
+            elif tool_name == "get_notes_by_date":
+                return self.tools.get_notes_by_date(str(kwargs.get("target_date", "")))
+            elif tool_name == "get_notes_by_date_range":
+                return self.tools.get_notes_by_date_range(
+                    str(kwargs.get("start_date", "")),
+                    str(kwargs.get("end_date", ""))
+                )
             elif tool_name == "list_notes":
                 return self.tools.list_notes()
             elif tool_name == "read_note":
@@ -99,10 +147,12 @@ class StudyCoachAgent:
                 return self.tools.search_notes(str(kwargs.get("query", "")))
             elif tool_name == "get_note_chunks":
                 return self.tools.get_note_chunks(int(kwargs.get("note_id", 0)))
+            elif tool_name == "get_goal_progress":
+                return self.tools.get_goal_progress()
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
         except Exception as e:
-            logger.error(f"Error executing AI tool {tool_name}: {e}")
+            logger.error("Error executing AI tool %s (%s).", tool_name, type(e).__name__)
             return {"error": f"Internal execution error: {str(e)}"}
             
     def chat(self, prompt: str) -> str:

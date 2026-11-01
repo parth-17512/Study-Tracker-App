@@ -46,7 +46,7 @@ class ChatBubble(QFrame):
             layout.addStretch()
 
 class AICoachWorker(QThread):
-    finished = Signal(str)
+    response_ready = Signal(str, str)
     error = Signal(str)
     
     def __init__(self, text, agent):
@@ -56,27 +56,18 @@ class AICoachWorker(QThread):
         
     def run(self):
         try:
-            from app.ai.providers.typesafe_router import intent_router
-            intent = intent_router.classify_intent(self.text)
-            
-            if intent.action == "search_notes":
-                from app.services.rag_service import RAGService
-                rag = RAGService()
-                query = intent.search_query if intent.search_query else self.text
-                results = rag.search(query, n_results=3)
-                if results:
-                    context = "\n---\n".join([f"Note ({r['name']}):\n{r['text']}" for r in results])
-                    prompt = f"User asked: {self.text}\n\nRelevant Notes Context:\n{context}\n\nPlease answer the user's question based on the provided notes context."
-                    response = self.agent.chat(prompt)
-                else:
-                    response = "I couldn't find any highly relevant notes to answer that."
-            elif intent.action == "get_stats":
-                prompt = f"User asked: {self.text}\n\nPlease use your stats tools to accurately answer the question."
-                response = self.agent.chat(prompt)
-            else:
-                response = self.agent.chat(self.text)
-                
-            self.finished.emit(response)
+            from app.services.coach_service import CoachService
+            service = CoachService(self.agent)
+            response = service.process_query(self.text)
+            provider = self.agent.provider
+            provider_name = getattr(provider, "last_used_provider_name", None)
+            if not provider_name:
+                provider_name = (
+                    "No LLM provider available"
+                    if response.startswith("All configured LLM providers failed")
+                    else "Grounded local data"
+                )
+            self.response_ready.emit(response, provider_name)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -336,15 +327,10 @@ class CoachPage(QWidget):
                 self.new_chat()
 
     def init_agent(self):
-        """Initializes the correct LLM provider based on config."""
-        api_key = self.config.get("gemini_api_key", "").strip()
-        
-        if api_key:
-            provider = GeminiProvider(api_key)
-        else:
-            provider = MockLLMProvider()
-            
-        self.agent = StudyCoachAgent(provider)
+        """Initializes the LLM provider router based on config."""
+        from app.ai.providers.router import FallbackProviderRouter
+        router = FallbackProviderRouter(self.config)
+        self.agent = StudyCoachAgent(router)
         
     def add_user_message(self, text: str, persist: bool = True):
         bubble = ChatBubble(text, is_user=True)
@@ -394,13 +380,13 @@ class CoachPage(QWidget):
         # Start worker
         self.init_agent()
         self.worker = AICoachWorker(text, self.agent)
-        self.worker.finished.connect(self.on_worker_finished)
+        self.worker.response_ready.connect(self.on_worker_finished)
         self.worker.error.connect(self.on_worker_error)
         self.worker.start()
 
-    def on_worker_finished(self, response: str):
+    def on_worker_finished(self, response: str, provider_name: str):
         self.thinking_bubble.deleteLater()
-        self.add_coach_message(response)
+        self.add_coach_message(f"{response}\n\n*Provider: {provider_name}*")
         self.finish_processing()
         
     def on_worker_error(self, error_str: str):

@@ -53,6 +53,12 @@ class EditSessionDialog(QDialog):
         
         form_layout = QFormLayout()
         
+        # Topic / Session Name
+        self.topic_input = QLineEdit()
+        self.topic_input.setText(session_obj.topic or "")
+        self.topic_input.setStyleSheet(f"background-color: {Theme.BACKGROUND_DARK}; border: 1px solid {Theme.BORDER_COLOR}; color: {Theme.TEXT_PRIMARY}; padding: 6px;")
+        form_layout.addRow("Topic / Name:", self.topic_input)
+
         # Notes
         self.notes_input = QTextEdit()
         self.notes_input.setPlainText(session_obj.notes or "")
@@ -99,6 +105,7 @@ class EditSessionDialog(QDialog):
         m = self.spin_mins.value()
         total_sec = (h * 3600) + (m * 60)
         return {
+            "topic": self.topic_input.text().strip(),
             "notes": self.notes_input.toPlainText(),
             "duration_seconds": total_sec
         }
@@ -140,9 +147,12 @@ class DailySessionsDialog(QDialog):
     def load_sessions(self, target_date):
         service = AnalyticsService()
         
-        # Get start and end of that specific day
-        start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end = start + timedelta(days=1)
+        # Match the heatmap's local-date interpretation when querying UTC-stored sessions.
+        local_tz = datetime.now().astimezone().tzinfo
+        start_local = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=local_tz)
+        end_local = start_local + timedelta(days=1)
+        start = start_local.astimezone(timezone.utc)
+        end = end_local.astimezone(timezone.utc) - timedelta(microseconds=1)
         
         with service.db.get_session() as db_session:
             sessions = service.session_repo.get_by_date_range(db_session, start, end)

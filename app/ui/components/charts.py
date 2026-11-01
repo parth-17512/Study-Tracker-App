@@ -92,6 +92,8 @@ class BarChartWidget(QWidget):
 
 class DistributionChartWidget(QWidget):
     """Layout-based Horizontal Bar Chart for Topic Distribution."""
+
+    MAX_VISIBLE_SUBJECTS = 10
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -117,8 +119,9 @@ class DistributionChartWidget(QWidget):
         if total_seconds == 0:
             total_seconds = 1
             
-        # Sort by duration descending
+        # Keep percentages relative to all subjects while only displaying the top ten.
         sorted_data = sorted(data.items(), key=lambda x: x[1], reverse=True)
+        visible_data = sorted_data[:self.MAX_VISIBLE_SUBJECTS]
         
         # Colors to cycle through
         colors = [
@@ -129,7 +132,7 @@ class DistributionChartWidget(QWidget):
             "#ec4899" # Pink
         ]
         
-        for i, (topic, sec) in enumerate(sorted_data):
+        for i, (topic, sec) in enumerate(visible_data):
             row = QWidget()
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 0, 0, 0)
@@ -175,4 +178,79 @@ class DistributionChartWidget(QWidget):
             
             self.layout.addWidget(row)
             
+        self.layout.addStretch()
+
+    def set_grouped_data(self, grouped_data: dict):
+        """
+        Renders the ten highest-duration AI-grouped learning areas.
+        """
+        while self.layout.count():
+            child = self.layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        groups = grouped_data.get("groups", [])
+        total_seconds = grouped_data.get("total_seconds", 0)
+
+        if not groups or total_seconds == 0:
+            lbl = QLabel("No grouped subject data available.")
+            lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-style: italic;")
+            self.layout.addWidget(lbl)
+            return
+
+        colors = [
+            Theme.PRIMARY_ACCENT,
+            Theme.SECONDARY_ACCENT,
+            Theme.SUCCESS_COLOR,
+            Theme.WARNING_COLOR,
+            "#ec4899"
+        ]
+
+        visible_groups = sorted(
+            groups, key=lambda group: group["total_seconds"], reverse=True
+        )[:self.MAX_VISIBLE_SUBJECTS]
+        for i, group in enumerate(visible_groups):
+            group_box = QWidget()
+            box_layout = QVBoxLayout(group_box)
+            box_layout.setContentsMargins(0, 4, 0, 4)
+            box_layout.setSpacing(4)
+
+            # Top Row: Label, Bar, Value, Toggle
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+
+            lbl_group = QLabel(group["label"])
+            lbl_group.setFixedWidth(130)
+            lbl_group.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-weight: bold; font-size: 13px;")
+
+            bar = QProgressBar()
+            bar.setFixedHeight(12)
+            bar.setTextVisible(False)
+            bar.setMaximum(100)
+            bar.setValue(int(group["percentage"]))
+
+            color = colors[i % len(colors)]
+            bar.setStyleSheet(f"""
+                QProgressBar {{
+                    background-color: {Theme.BACKGROUND_DARK};
+                    border: none;
+                    border-radius: 4px;
+                }}
+                QProgressBar::chunk {{
+                    background-color: {color};
+                    border-radius: 4px;
+                }}
+            """)
+
+            lbl_val = QLabel(f"{group['percentage']:.1f}% ({group['formatted_duration']})")
+            lbl_val.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px; font-weight: bold;")
+
+            row_layout.addWidget(lbl_group)
+            row_layout.addWidget(bar)
+            row_layout.addWidget(lbl_val)
+            box_layout.addWidget(row)
+
+            self.layout.addWidget(group_box)
+
         self.layout.addStretch()

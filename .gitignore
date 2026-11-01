@@ -1,6 +1,7 @@
 # Virtual environment
 venv/
 env/
+build_venv/
 .env
 
 # Pycache
@@ -29,6 +30,7 @@ htmlcov/
 
 # User data
 user_data/
+test_appdata/
 
 # Logs
 logs/

@@ -25,7 +25,15 @@ class ConfigManager:
             "desktop_notifications": True,
             "theme": "dark",
             "default_pomodoro_minutes": 25,
-            "gemini_api_key": ""
+            "gemini_api_key": "",
+            "llm_provider_priority": "gemini_first",
+            "compatible_api_base_url": "",
+            "compatible_api_key": "",
+            "compatible_api_model": "",
+            "compatible_api_label": "Compatible API",
+            "compatible_api_timeout": 60,
+            "cloud_consent": False,
+            "cloud_consent_configured": False
         }
         self.settings = self.default_settings.copy()
         
@@ -38,6 +46,15 @@ class ConfigManager:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     loaded = json.load(f)
                     self.settings.update(loaded)
+                    legacy_priorities = {
+                        "ollama_first", "ollama_cloud_first", "ollama_only",
+                        "gemini_cloud_first",
+                    }
+                    if loaded.get("llm_provider_priority") in legacy_priorities:
+                        self.settings["llm_provider_priority"] = "gemini_first"
+                    if not loaded.get("cloud_consent_configured", False):
+                        # Older settings may contain the former permissive default; require an explicit opt-in.
+                        self.settings["cloud_consent"] = False
                     logger.info("Settings loaded successfully.")
             except Exception as e:
                 logger.error(f"Failed to load settings: {e}")

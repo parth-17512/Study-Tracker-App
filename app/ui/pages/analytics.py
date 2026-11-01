@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from datetime import datetime, timezone
 from app.ui.theme import Theme
 from app.ui.components.card import Card
-from app.ui.components.button import PrimaryButton
+from app.ui.components.button import PrimaryButton, SecondaryButton
 from app.ui.components.charts import BarChartWidget, DistributionChartWidget
 from app.services.analytics_service import AnalyticsService
 from app.ai.agent import StudyCoachAgent
@@ -19,17 +19,8 @@ class AIInsightsWorker(QThread):
         
     def run(self):
         try:
-            from app.config.config_manager import ConfigManager
-            config = ConfigManager()
-            api_key = config.get("gemini_api_key", "").strip()
-            
-            if not api_key:
-                self.error.emit("Gemini API Key is not configured. Please add it in Settings.")
-                return
-                
-            from google import genai
-            
-            client = genai.Client(api_key=api_key)
+            from app.ai.providers.router import FallbackProviderRouter
+            router = FallbackProviderRouter()
             prompt = (
                 "You are an Advanced Analytical AI for a student's study tracker app. "
                 "Based on the following stats, provide a daily summary with key insights, "
@@ -38,20 +29,30 @@ class AIInsightsWorker(QThread):
                 f"Data Context:\n{self.stats_context}\n\n"
                 "Format your response elegantly in Markdown using headers, bold text, and lists."
             )
-            
-            response_stream = client.models.generate_content_stream(
-                model="gemini-3.6-flash",
-                contents=prompt
-            )
-            
-            for chunk in response_stream:
-                if chunk.text:
-                    self.chunk_received.emit(chunk.text)
-            
+            response = router.generate_text(prompt)
+            provider = router.last_used_provider_name or "No LLM provider succeeded"
+            self.chunk_received.emit(f"{response}\n\n*Provider: {provider}*")
             self.finished.emit()
         except Exception as e:
-            # Fallback to older model if available
             self.error.emit(str(e))
+
+class SubjectGroupingWorker(QThread):
+    completed = Signal(dict, str)
+    failed = Signal(str)
+
+    def __init__(self, topic_distribution, parent=None):
+        super().__init__(parent)
+        self.topic_distribution = dict(topic_distribution)
+
+    def run(self):
+        try:
+            from app.services.subject_grouping_service import SubjectGroupingService
+            service = SubjectGroupingService()
+            grouped = service.group_topics(self.topic_distribution)
+            provider = service.router.last_used_provider_name or "Conservative local grouping"
+            self.completed.emit(grouped, provider)
+        except Exception as e:
+            self.failed.emit(str(e))
 
 class AnalyticsPage(QWidget):
     """Deep analytics and charts for study data."""
@@ -77,6 +78,8 @@ class AnalyticsPage(QWidget):
         self.scroll.setWidget(self.scroll_content)
         self.main_layout.addWidget(self.scroll, stretch=1)
         
+        self.showing_ai_grouped = False
+        self.cached_grouped_data = None
         self.setup_ui()
         
     def setup_ui(self):
@@ -143,15 +146,31 @@ class AnalyticsPage(QWidget):
         bar_layout.addWidget(self.bar_chart)
         bar_card.addLayout(bar_layout)
         charts_layout.addWidget(bar_card, stretch=1)
-        
+
         # Topic Distribution
         dist_card = Card()
         dist_layout = QVBoxLayout()
-        lbl_dist_title = QLabel("Subject Distribution")
-        lbl_dist_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold; margin-bottom: 8px;")
-        dist_layout.addWidget(lbl_dist_title)
+
+        dist_header = QHBoxLayout()
+        lbl_dist_title = QLabel("Top 10 Subjects by Study Time")
+        lbl_dist_title.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        dist_header.addWidget(lbl_dist_title)
+        dist_header.addStretch()
+
+        self.btn_toggle_grouping = SecondaryButton("Group with AI 🤖")
+        self.btn_toggle_grouping.setFixedHeight(28)
+        self.btn_toggle_grouping.setStyleSheet(f"font-size: 11px; padding: 4px 10px; border-radius: 4px;")
+        self.btn_toggle_grouping.clicked.connect(self.toggle_subject_grouping)
+        dist_header.addWidget(self.btn_toggle_grouping)
+
+        dist_layout.addLayout(dist_header)
+
+        self.lbl_grouping_status = QLabel("")
+        self.lbl_grouping_status.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 11px; font-style: italic; margin-bottom: 4px;")
+        dist_layout.addWidget(self.lbl_grouping_status)
         
         self.dist_chart = DistributionChartWidget()
+        self.dist_chart.setFixedHeight(340)
         dist_layout.addWidget(self.dist_chart)
         dist_card.addLayout(dist_layout)
         charts_layout.addWidget(dist_card, stretch=1)
@@ -236,8 +255,63 @@ class AnalyticsPage(QWidget):
         bar_data = self.analytics_service.get_last_7_days_chart_data(now)
         self.bar_chart.set_data(bar_data)
         
+        self.refresh_distribution_view()
+
+    def toggle_subject_grouping(self):
+        self.showing_ai_grouped = not self.showing_ai_grouped
+        if self.showing_ai_grouped:
+            self.btn_toggle_grouping.setText("View Original Subjects")
+            self.lbl_grouping_status.setText("Grouping similar topics into learning areas... ⏳")
+        else:
+            self.btn_toggle_grouping.setText("Group with AI 🤖")
+            self.lbl_grouping_status.setText("Showing original subjects.")
+        self.refresh_distribution_view()
+
+    def refresh_distribution_view(self):
         dist_data = self.analytics_service.get_topic_distribution()
-        self.dist_chart.set_data(dist_data)
+        if not dist_data:
+            self.showing_ai_grouped = False
+            self.btn_toggle_grouping.setText("Group with AI 🤖")
+            self.dist_chart.set_data({})
+            self.lbl_grouping_status.setText("No study sessions recorded yet.")
+            self.btn_toggle_grouping.setEnabled(True)
+            return
+
+        if self.showing_ai_grouped:
+            self.lbl_grouping_status.setText("Grouping similar topics... This may take a moment.")
+            self.btn_toggle_grouping.setEnabled(False)
+            self.subject_grouping_worker = SubjectGroupingWorker(dist_data, self)
+            self.subject_grouping_worker.completed.connect(self._on_grouping_completed)
+            self.subject_grouping_worker.failed.connect(self._on_grouping_failed)
+            self.subject_grouping_worker.start()
+        else:
+            self.btn_toggle_grouping.setEnabled(True)
+            self.dist_chart.set_data(dist_data)
+            self.lbl_grouping_status.setText(
+                f"Showing the top 10 of {len(dist_data)} original subjects by study time."
+            )
+
+    def _on_grouping_completed(self, grouped, provider_name):
+        if not self.showing_ai_grouped:
+            return
+        self.btn_toggle_grouping.setEnabled(True)
+        self.dist_chart.set_grouped_data(grouped)
+        num_groups = len(grouped.get("groups", []))
+        num_topics = sum(len(group.get("topics", [])) for group in grouped.get("groups", []))
+        self.lbl_grouping_status.setText(
+            f"Grouped {num_topics} topics into {num_groups} learning areas using {provider_name}. "
+            f"Showing the top 10 learning areas by study time."
+        )
+
+    def _on_grouping_failed(self, error):
+        if not self.showing_ai_grouped:
+            return
+        self.btn_toggle_grouping.setEnabled(True)
+        data = self.analytics_service.get_topic_distribution()
+        self.dist_chart.set_data(data)
+        self.lbl_grouping_status.setText(
+            f"AI grouping failed: {error}. Showing the top 10 original subjects instead."
+        )
 
     def _set_comparison_label(self, label, current_sec, past_sec):
         ch = current_sec // 3600

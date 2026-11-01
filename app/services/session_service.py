@@ -42,6 +42,30 @@ class SessionService(BaseService):
         with self.db.get_session() as session:
             return self.repository.delete(session, session_id)
 
+    def update_session_name(self, session_id: int, new_name: str) -> bool:
+        """
+        Validates and updates the topic/name of a session without modifying other metadata.
+        Rejects blank names and trims surrounding whitespace.
+        """
+        if not new_name or not new_name.strip():
+            raise ValueError("Session name cannot be empty.")
+
+        clean_name = new_name.strip()
+        with self.db.get_session() as session:
+            db_obj = self.repository.get(session, session_id)
+            if not db_obj:
+                raise ValueError(f"Session with ID {session_id} not found.")
+            self.repository.update(session, db_obj, {"topic": clean_name})
+            session.commit()
+            return True
+
+    def get_recent_completed_sessions(self, limit: int = 10) -> List[StudySession]:
+        """Fetch the most recent completed sessions."""
+        with self.db.get_session() as session:
+            all_sessions = self.repository.get_all_ordered_by_date(session)
+            completed = [s for s in all_sessions if s.status == "COMPLETED"]
+            return completed[:limit]
+
     def search_sessions(self, text_query: str = None, topic: str = None, status: str = None, order_by: str = "newest") -> List[StudySession]:
         with self.db.get_session() as session:
             return self.repository.search_sessions(

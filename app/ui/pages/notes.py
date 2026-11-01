@@ -466,15 +466,13 @@ class NotesPage(QWidget):
             return
             
         from app.config.config_manager import ConfigManager
-        from app.ai.providers.gemini import GeminiProvider
-        from app.ai.providers.mock import MockLLMProvider
+        from app.ai.providers.router import FallbackProviderRouter
         from app.ai.agent import StudyCoachAgent
         from app.ui.components.ai_format_dialog import AIFmtPreviewDialog
         from PySide6.QtWidgets import QApplication, QMessageBox
         
         config = ConfigManager()
-        api_key = config.get("gemini_api_key", "").strip()
-        provider = GeminiProvider(api_key) if api_key else MockLLMProvider()
+        provider = FallbackProviderRouter(config)
         agent = StudyCoachAgent(provider)
         
         self.status_label.setText("✨ AI Formatting in progress...")
@@ -482,6 +480,9 @@ class NotesPage(QWidget):
         
         try:
             formatted_content = agent.format_note(content)
+            if not formatted_content or formatted_content.startswith(("ERROR:", "All configured LLM providers failed")):
+                QMessageBox.warning(self, "AI Format Unavailable", formatted_content or "The AI provider returned an empty response.")
+                return
             
             dialog = AIFmtPreviewDialog(content, formatted_content, self)
             if dialog.exec_():

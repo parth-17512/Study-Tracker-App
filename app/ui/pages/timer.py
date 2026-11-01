@@ -1,22 +1,26 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStackedWidget, QSpinBox, QRadioButton, QButtonGroup, QSpacerItem, QSizePolicy, QLineEdit
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStackedWidget, QSpinBox,
+    QRadioButton, QButtonGroup, QSpacerItem, QSizePolicy, QLineEdit, QComboBox, QScrollArea
+)
 from PySide6.QtCore import Qt, QTimer as QtCoreTimer
+from datetime import datetime, timezone
 from app.ui.theme import Theme
 from app.ui.components.card import Card
 from app.ui.components.button import PrimaryButton, SecondaryButton
 from app.services.timer_service import TimerService
+from app.services.session_service import SessionService
 from app.timer.timer_state import TimerState, TimerMode
-
 from app.services.notification_service import NotificationService
+from app.utils.time_utils import to_local_time
 
 class TimerPage(QWidget):
-    """The timer page featuring a stopwatch and countdown mode."""
+    """The timer page featuring a stopwatch, countdown mode, and session name editor."""
     
     def __init__(self, timer_service: TimerService, notification_service: NotificationService, parent=None):
         super().__init__(parent)
         self.timer_service = timer_service
         self.notification_service = notification_service
-        
-        from PySide6.QtWidgets import QScrollArea
+        self.session_service = SessionService()
         
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 0, 0, 0)
@@ -39,10 +43,11 @@ class TimerPage(QWidget):
         # UI Update Loop
         self.update_timer = QtCoreTimer(self)
         self.update_timer.timeout.connect(self.update_display)
-        self.update_timer.setInterval(100) # 100ms for smooth UI updates
+        self.update_timer.setInterval(100)
         
         self.setup_ui()
         self.sync_ui_state()
+        self.load_recent_sessions_for_editing()
 
     def setup_ui(self):
         # 1. Mode Selector (Stopwatch / Countdown)
@@ -72,9 +77,15 @@ class TimerPage(QWidget):
         timer_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         timer_layout.setSpacing(Theme.SPACING_LARGE)
         
-        # Topic Input
+        # Topic Input Row (editable before and during session)
+        topic_container = QWidget()
+        topic_container.setMaximumWidth(460)
+        topic_layout = QHBoxLayout(topic_container)
+        topic_layout.setContentsMargins(0, 0, 0, 0)
+        topic_layout.setSpacing(8)
+
         self.topic_input = QLineEdit()
-        self.topic_input.setPlaceholderText("What are you focusing on? (Optional)")
+        self.topic_input.setPlaceholderText("What are you focusing on? (e.g. Python)")
         self.topic_input.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {Theme.BACKGROUND_DARK};
@@ -88,9 +99,21 @@ class TimerPage(QWidget):
                 border: 1px solid {Theme.PRIMARY_ACCENT};
             }}
         """)
-        self.topic_input.setMaximumWidth(400)
-        timer_layout.addWidget(self.topic_input, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.topic_input.textChanged.connect(self.on_topic_text_changed)
+        topic_layout.addWidget(self.topic_input, stretch=1)
+
+        self.btn_save_active_topic = SecondaryButton("Save")
+        self.btn_save_active_topic.clicked.connect(self.save_active_topic)
+        self.btn_save_active_topic.setToolTip("Save topic name for active session")
+        topic_layout.addWidget(self.btn_save_active_topic)
+
+        timer_layout.addWidget(topic_container, alignment=Qt.AlignmentFlag.AlignCenter)
         
+        # Active Topic Feedback
+        self.lbl_active_topic_feedback = QLabel("")
+        self.lbl_active_topic_feedback.setStyleSheet("font-size: 12px; color: " + Theme.SUCCESS_COLOR)
+        timer_layout.addWidget(self.lbl_active_topic_feedback, alignment=Qt.AlignmentFlag.AlignCenter)
+
         # Input for Countdown (Hidden in Stopwatch mode)
         self.duration_input_widget = QWidget()
         duration_layout = QHBoxLayout(self.duration_input_widget)
@@ -153,7 +176,7 @@ class TimerPage(QWidget):
         
         self.spin_mins = QSpinBox()
         self.spin_mins.setRange(0, 59)
-        self.spin_mins.setValue(25) # Default pomodoro
+        self.spin_mins.setValue(25)
         self.spin_mins.setStyleSheet(spinbox_style)
         self.spin_mins.setButtonSymbols(QSpinBox.UpDownArrows)
         
@@ -166,7 +189,7 @@ class TimerPage(QWidget):
         duration_layout.addWidget(lbl_mins)
         duration_layout.addWidget(self.spin_mins)
         duration_layout.addStretch()
-        self.duration_input_widget.hide() # Default is stopwatch
+        self.duration_input_widget.hide()
         
         timer_layout.addWidget(self.duration_input_widget, alignment=Qt.AlignmentFlag.AlignCenter)
         
@@ -217,9 +240,167 @@ class TimerPage(QWidget):
         
         self.layout.addLayout(controls_layout)
 
+        # 4. Session Name Editor Card (Requirement 4)
+        self.edit_card = Card()
+        edit_card_layout = QVBoxLayout()
+        edit_card_layout.setSpacing(12)
+
+        lbl_edit_header = QLabel("Edit Study Session Name")
+        lbl_edit_header.setStyleSheet(f"color: {Theme.TEXT_PRIMARY}; font-size: 16px; font-weight: bold;")
+        edit_card_layout.addWidget(lbl_edit_header)
+
+        lbl_edit_desc = QLabel("Organize and correct names of study sessions to keep your analytics and learning categories accurate:")
+        lbl_edit_desc.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
+        lbl_edit_desc.setWordWrap(True)
+        edit_card_layout.addWidget(lbl_edit_desc)
+
+        # Selector Row
+        selector_layout = QHBoxLayout()
+        lbl_select = QLabel("Select Session:")
+        lbl_select.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        selector_layout.addWidget(lbl_select)
+
+        self.session_selector_combo = QComboBox()
+        self.session_selector_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {Theme.BACKGROUND_DARK};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER_COLOR};
+                border-radius: 6px;
+                padding: 6px;
+                min-width: 300px;
+            }}
+        """)
+        self.session_selector_combo.currentIndexChanged.connect(self.on_session_selected)
+        selector_layout.addWidget(self.session_selector_combo, stretch=1)
+        edit_card_layout.addLayout(selector_layout)
+
+        # Name Input Row
+        name_edit_row = QHBoxLayout()
+        lbl_new_name = QLabel("Session Name:")
+        lbl_new_name.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-weight: bold;")
+        name_edit_row.addWidget(lbl_new_name)
+
+        self.edit_name_input = QLineEdit()
+        self.edit_name_input.setPlaceholderText("Enter corrected session name...")
+        self.edit_name_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {Theme.BACKGROUND_DARK};
+                color: {Theme.TEXT_PRIMARY};
+                border: 1px solid {Theme.BORDER_COLOR};
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+            }}
+        """)
+        name_edit_row.addWidget(self.edit_name_input, stretch=1)
+
+        self.btn_save_name = PrimaryButton("Save Name")
+        self.btn_save_name.clicked.connect(self.save_session_name)
+        name_edit_row.addWidget(self.btn_save_name)
+
+        self.btn_cancel_edit = SecondaryButton("Cancel")
+        self.btn_cancel_edit.clicked.connect(self.cancel_session_name_edit)
+        name_edit_row.addWidget(self.btn_cancel_edit)
+
+        edit_card_layout.addLayout(name_edit_row)
+
+        self.lbl_edit_feedback = QLabel("")
+        self.lbl_edit_feedback.setStyleSheet("font-size: 12px;")
+        edit_card_layout.addWidget(self.lbl_edit_feedback)
+
+        self.edit_card.addLayout(edit_card_layout)
+        self.layout.addWidget(self.edit_card)
+
+    def on_topic_text_changed(self, text):
+        self.lbl_active_topic_feedback.setText("")
+
+    def save_active_topic(self):
+        topic = self.topic_input.text().strip()
+        self.timer_service.update_active_topic(topic)
+        self.lbl_active_topic_feedback.setText("✓ Topic updated for active session.")
+        QtCoreTimer.singleShot(2500, lambda: self.lbl_active_topic_feedback.setText(""))
+
+    def load_recent_sessions_for_editing(self):
+        """Populates the session editor combo box with recent completed sessions."""
+        self.session_selector_combo.blockSignals(True)
+        self.session_selector_combo.clear()
+
+        sessions = self.session_service.get_recent_completed_sessions(limit=15)
+        if not sessions:
+            self.session_selector_combo.addItem("No completed sessions yet", None)
+            self.edit_name_input.setEnabled(False)
+            self.btn_save_name.setEnabled(False)
+            self.btn_cancel_edit.setEnabled(False)
+        else:
+            self.edit_name_input.setEnabled(True)
+            self.btn_save_name.setEnabled(True)
+            self.btn_cancel_edit.setEnabled(True)
+
+            for s in sessions:
+                local_time = to_local_time(s.start_time)
+                date_str = local_time.strftime("%b %d, %H:%M") if local_time else "Unknown"
+                dur = s.duration_seconds or 0
+                dur_str = f"{dur//3600}h {(dur%3600)//60}m" if dur >= 3600 else f"{dur//60}m"
+                topic = s.topic or "Uncategorized"
+
+                label = f"{topic} — {date_str} ({dur_str})"
+                self.session_selector_combo.addItem(label, s.id)
+
+        self.session_selector_combo.blockSignals(False)
+        self.on_session_selected(0)
+
+    def on_session_selected(self, index):
+        session_id = self.session_selector_combo.currentData()
+        self.lbl_edit_feedback.setText("")
+        if not session_id:
+            self.edit_name_input.clear()
+            return
+
+        session = self.session_service.get_session(session_id)
+        if session:
+            self.original_selected_name = session.topic or ""
+            self.edit_name_input.setText(self.original_selected_name)
+
+    def save_session_name(self):
+        session_id = self.session_selector_combo.currentData()
+        if not session_id:
+            return
+
+        new_name = self.edit_name_input.text().strip()
+        if not new_name:
+            self.lbl_edit_feedback.setText("⚠️ Session name cannot be empty. Please enter a valid name.")
+            self.lbl_edit_feedback.setStyleSheet(f"color: {Theme.WARNING_COLOR}; font-size: 12px; font-weight: bold;")
+            return
+
+        try:
+            success = self.session_service.update_session_name(session_id, new_name)
+            if success:
+                self.lbl_edit_feedback.setText(f"✓ Session name updated to '{new_name}' successfully!")
+                self.lbl_edit_feedback.setStyleSheet(f"color: {Theme.SUCCESS_COLOR}; font-size: 12px; font-weight: bold;")
+
+                # Refresh dropdown to update label and keep selected
+                curr_id = session_id
+                self.load_recent_sessions_for_editing()
+                idx = self.session_selector_combo.findData(curr_id)
+                if idx >= 0:
+                    self.session_selector_combo.setCurrentIndex(idx)
+        except Exception as e:
+            self.lbl_edit_feedback.setText(f"❌ Failed to save session name: {str(e)}")
+            self.lbl_edit_feedback.setStyleSheet(f"color: {Theme.DANGER_COLOR}; font-size: 12px;")
+
+    def cancel_session_name_edit(self):
+        session_id = self.session_selector_combo.currentData()
+        if session_id and hasattr(self, 'original_selected_name'):
+            self.edit_name_input.setText(self.original_selected_name)
+            self.lbl_edit_feedback.setText("Edit cancelled. Name reverted.")
+            self.lbl_edit_feedback.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
+        else:
+            self.edit_name_input.clear()
+            self.lbl_edit_feedback.setText("")
+
     def on_mode_changed(self, id):
         if self.timer_service.engine.state != TimerState.IDLE:
-            # Prevent mode change while running/paused
             current_is_countdown = (self.timer_service.engine.mode == TimerMode.COUNTDOWN)
             self.radio_countdown.blockSignals(True)
             self.radio_stopwatch.blockSignals(True)
@@ -229,12 +410,12 @@ class TimerPage(QWidget):
             self.radio_stopwatch.blockSignals(False)
             return
 
-        if id == 0: # Stopwatch
+        if id == 0:
             self.duration_input_widget.hide()
             self.time_display.setText("00:00:00")
-        else: # Countdown
+        else:
             self.duration_input_widget.show()
-            self.update_display() # Updates based on spinbox values
+            self.update_display()
 
     def format_time(self, seconds: int) -> str:
         h = seconds // 3600
@@ -262,23 +443,19 @@ class TimerPage(QWidget):
             secs = engine.get_remaining_seconds()
             self.time_display.setText(self.format_time(secs))
             if secs == 0 and engine.state == TimerState.RUNNING:
-                # Auto-complete and Notify
                 self.notification_service.play_alarm()
                 self.timer_service.complete()
                 self.sync_ui_state()
+                self.load_recent_sessions_for_editing()
                 
-                # Show persistent alarm dialog
                 from app.ui.components.dialogs import AlarmDialog
                 dialog = AlarmDialog(self)
                 dialog.exec()
-                
-                # Stop alarm when dialog closes
                 self.notification_service.stop_alarm()
 
     def sync_ui_state(self):
         state = self.timer_service.engine.state
         
-        # Mode selector visibility
         self.radio_stopwatch.setEnabled(state == TimerState.IDLE)
         self.radio_countdown.setEnabled(state == TimerState.IDLE)
         
@@ -288,14 +465,11 @@ class TimerPage(QWidget):
             else:
                 self.radio_stopwatch.setChecked(True)
         
-        # Input visibility
         self.duration_input_widget.setVisible(state == TimerState.IDLE and self.radio_countdown.isChecked())
         
-        self.topic_input.setEnabled(state == TimerState.IDLE)
         if state != TimerState.IDLE and self.timer_service.engine.topic:
             self.topic_input.setText(self.timer_service.engine.topic)
         
-        # Button visibility
         self.btn_start.setVisible(state == TimerState.IDLE)
         self.btn_pause.setVisible(state == TimerState.RUNNING)
         self.btn_resume.setVisible(state == TimerState.PAUSED)
@@ -308,7 +482,6 @@ class TimerPage(QWidget):
             self.update_timer.stop()
             self.update_display()
         else:
-            # Paused/Completed/Cancelled
             self.update_timer.stop()
             self.update_display()
 
@@ -320,7 +493,7 @@ class TimerPage(QWidget):
         else:
             total_secs = (self.spin_hours.value() * 3600) + (self.spin_mins.value() * 60)
             if total_secs == 0:
-                return # Cannot start 0 duration
+                return
             self.timer_service.start_countdown(duration_seconds=total_secs, topic=topic)
             
         self.sync_ui_state()
@@ -336,7 +509,9 @@ class TimerPage(QWidget):
     def complete_timer(self):
         self.timer_service.complete()
         self.sync_ui_state()
+        self.load_recent_sessions_for_editing()
 
     def cancel_timer(self):
         self.timer_service.cancel()
         self.sync_ui_state()
+        self.load_recent_sessions_for_editing()

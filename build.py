@@ -42,8 +42,10 @@ def build_app(mode="onedir"):
         sys.executable, "-m", "PyInstaller",
         "--name", "StudyTrack",
         "--noconsole",
+        "--noconfirm",
         "--clean",
         "--icon=assets/studytrack.ico",
+        "--exclude-module=onnxruntime",
         "main.py"
     ]
     
