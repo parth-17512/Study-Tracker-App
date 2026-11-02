@@ -60,8 +60,8 @@ StudyTrack V2 introduces a suite of cutting-edge AI features, seamless UI/UX red
 How to run the app in development mode from source:
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/parth-17512/Study-Tracker-Agent.git
-   cd Study-Tracker-Agent
+   git clone https://github.com/parth-17512/Study-Tracker-App.git
+   cd Study-Tracker-App
    ```
 2. **Create and activate virtual environment**:
    ```bash
