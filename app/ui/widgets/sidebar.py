@@ -70,6 +70,7 @@ class Sidebar(QWidget):
             "analytics": SidebarButton("Analytics"),
             "coach": SidebarButton("Coach"),
             "calendar": SidebarButton("Calendar"),
+            "timestamp": SidebarButton("Time Stamp"),
             "settings": SidebarButton("Settings")
         }
         
@@ -82,6 +83,7 @@ class Sidebar(QWidget):
         
         # Set initial active state
         self.active_key = None
+        self.current_nav = "dashboard"
         self.set_active("dashboard")
         
     def on_nav_clicked(self, key):
@@ -91,7 +93,8 @@ class Sidebar(QWidget):
     def set_active(self, key):
         if self.active_key and self.active_key in self.nav_items:
             self.nav_items[self.active_key].setChecked(False)
-            
+
         if key in self.nav_items:
             self.nav_items[key].setChecked(True)
             self.active_key = key
+            self.current_nav = key

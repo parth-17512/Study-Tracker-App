@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QProgressBar, QScrollArea, QSpinBox
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from datetime import datetime, timezone
 from app.ui.theme import Theme
 from app.ui.components.card import Card
@@ -15,7 +15,10 @@ class DashboardPage(QWidget):
         self.analytics_service = AnalyticsService()
         self.config = ConfigManager()
         
-        self.daily_goal_seconds = self.config.get("daily_goal_seconds", 2 * 3600) 
+        self.daily_goal_seconds = self.config.get("daily_goal_seconds", 6 * 3600)
+        self.goal_unlock_timer = QTimer(self)
+        self.goal_unlock_timer.setSingleShot(True)
+        self.goal_unlock_timer.timeout.connect(self._refresh_daily_goal_controls)
         
         # Outer layout holds a scroll area
         outer_layout = QVBoxLayout(self)
@@ -119,6 +122,10 @@ class DashboardPage(QWidget):
         spin_layout.addStretch()
         
         goal_layout.addLayout(spin_layout)
+        self.lbl_goal_limit = QLabel()
+        self.lbl_goal_limit.setWordWrap(True)
+        self.lbl_goal_limit.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
+        goal_layout.addWidget(self.lbl_goal_limit)
         goal_layout.addStretch()
         self.goal_card.addLayout(goal_layout)
         grid.addWidget(self.goal_card, 0, 1)
@@ -197,11 +204,56 @@ class DashboardPage(QWidget):
         h = self.spin_goal_h.value()
         m = self.spin_goal_m.value()
         new_seconds = h * 3600 + m * 60
-        if new_seconds > 0:
-            self.daily_goal_seconds = new_seconds
-            self.config.set("daily_goal_seconds", self.daily_goal_seconds)
-            self.heatmap.daily_goal_seconds = self.daily_goal_seconds
-            self.load_data()
+        if new_seconds <= 0:
+            self.lbl_goal_limit.setText("Daily goal must be greater than zero.")
+            self.lbl_goal_limit.setStyleSheet(f"color: {Theme.WARNING_COLOR}; font-size: 12px;")
+            return
+
+        if new_seconds == self.daily_goal_seconds:
+            self.lbl_goal_limit.setText(
+                "Your daily goal is unchanged, so the weekly change limit was not used."
+            )
+            return
+
+        if not self.config.can_change_daily_goal():
+            self._refresh_daily_goal_controls()
+            return
+
+        if not self.config.update_daily_goal(new_seconds):
+            self.lbl_goal_limit.setText("The daily goal could not be saved. Please try again.")
+            self.lbl_goal_limit.setStyleSheet(f"color: {Theme.WARNING_COLOR}; font-size: 12px;")
+            return
+
+        self.daily_goal_seconds = new_seconds
+        self.heatmap.daily_goal_seconds = new_seconds
+        self._refresh_daily_goal_controls()
+        self.load_data()
+
+    def _refresh_daily_goal_controls(self):
+        self.goal_unlock_timer.stop()
+        available_at = self.config.get_daily_goal_change_available_at()
+        now = datetime.now(timezone.utc)
+        can_change = available_at is None or now >= available_at
+
+        self.spin_goal_h.setEnabled(can_change)
+        self.spin_goal_m.setEnabled(can_change)
+        self.btn_set_goal.setEnabled(can_change)
+
+        if can_change:
+            self.lbl_goal_limit.setText(
+                "You can change your daily goal once every 7 days. Saving a new goal starts the 7-day cooldown."
+            )
+            self.lbl_goal_limit.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 12px;")
+            return
+
+        unlock_local = available_at.astimezone()
+        unlock_text = unlock_local.strftime("%b %d, %Y at %I:%M %p")
+        self.lbl_goal_limit.setText(
+            f"You can change your daily goal once every 7 days. Your next change will be available on {unlock_text}."
+        )
+        self.lbl_goal_limit.setStyleSheet(f"color: {Theme.WARNING_COLOR}; font-size: 12px;")
+        milliseconds_until_unlock = max(1, int((available_at - now).total_seconds() * 1000) + 1)
+        self.goal_unlock_timer.start(milliseconds_until_unlock)
 
     def load_heatmap_data(self, year: int):
         data = self.analytics_service.get_yearly_heatmap_data(year)
@@ -259,3 +311,4 @@ class DashboardPage(QWidget):
         
         # Heatmap
         self.load_heatmap_data(self.heatmap.current_year)
+        self._refresh_daily_goal_controls()

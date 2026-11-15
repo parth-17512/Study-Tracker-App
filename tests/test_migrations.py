@@ -14,16 +14,20 @@ def temp_db_dir(tmp_path, monkeypatch):
     monkeypatch.setattr("app.config.settings.DATA_DIR", tmp_path)
     return tmp_path
 
-def test_fresh_database_initialization(temp_db_dir, monkeypatch):
-    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 2)
+def test_fresh_database_initialization(temp_db_dir):
     db_path = temp_db_dir / "studytrack.db"
     db_url = f"sqlite:///{db_path}"
     db = Database(db_url)
     db.init_db()
     
-    # Check that db_version is set to 2
+    # Check that the current schema version is recorded.
     version = migrations.get_current_version(db.engine)
-    assert version == 2
+    assert version == migrations.CURRENT_SCHEMA_VERSION
+    with db.engine.connect() as conn:
+        table = conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='activity_blocks'"
+        )).fetchone()
+    assert table is not None
     
 def test_unversioned_v1_upgrade(temp_db_dir):
     db_path = temp_db_dir / "studytrack.db"
@@ -42,46 +46,48 @@ def test_unversioned_v1_upgrade(temp_db_dir):
     db.init_db()
     
     version = migrations.get_current_version(db.engine)
-    assert version == 2
+    assert version == migrations.CURRENT_SCHEMA_VERSION
     
     # Verify data is preserved
     with db.engine.connect() as conn:
         result = conn.execute(text("SELECT id FROM subjects")).fetchone()
         assert result[0] == 1
+        table = conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='activity_blocks'"
+        )).fetchone()
+        assert table is not None
 
-def test_backup_before_migration(temp_db_dir, monkeypatch):
+def test_backup_before_migration(temp_db_dir):
     db_path = temp_db_dir / "studytrack.db"
     db_url = f"sqlite:///{db_path}"
     
-    # Create an unversioned V1 db
+    # Create a minimal v2 database without the activity_blocks table.
     engine = create_engine(db_url)
     with engine.connect() as conn:
         with conn.begin():
-            conn.execute(text("CREATE TABLE subjects (id INTEGER PRIMARY KEY)"))
-            conn.execute(text("CREATE TABLE active_timer (id INTEGER PRIMARY KEY)"))
-    
-    # Init DB to set it to version 1
+            conn.execute(text("CREATE TABLE study_sessions (id INTEGER PRIMARY KEY)"))
+    set_current_version(engine, 2)
+
+    # Upgrade from v2 to the current schema; the existing file should be backed up first.
     db = Database(db_url)
     db.init_db()
-    
-    # Now simulate a migration by monkeypatching CURRENT_SCHEMA_VERSION
-    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 2)
-    
-    # Re-init db. This should trigger backup.
-    db2 = Database(db_url)
-    db2.init_db()
     
     # Check that backup was created
     backup_dir = temp_db_dir / "backups"
     assert backup_dir.exists()
     backups = list(backup_dir.glob("studytrack_backup_*.db"))
     assert len(backups) == 1
+    with db.engine.connect() as conn:
+        table = conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='activity_blocks'"
+        )).fetchone()
+    assert table is not None
 
 def test_failed_migration_preserves_database(temp_db_dir, monkeypatch):
     db_path = temp_db_dir / "studytrack.db"
     db_url = f"sqlite:///{db_path}"
     
-    # Initialize normally to version 1
+    # Initialize normally to the current schema version.
     db = Database(db_url)
     db.init_db()
     
@@ -92,7 +98,7 @@ def test_failed_migration_preserves_database(temp_db_dir, monkeypatch):
             conn.execute(text("INSERT INTO dummy (id) VALUES (42)"))
     
     # Simulate a failing migration step
-    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 2)
+    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 4)
     
     def failing_migration(*args, **kwargs):
         raise Exception("Intentional Migration Failure")
@@ -135,7 +141,7 @@ def test_existing_notes_survive_upgrade(temp_db_dir, monkeypatch):
             conn.execute(text("INSERT INTO note_nodes (name, is_folder, is_favorite) VALUES ('Test Note', 0, 0)"))
             
     # Trigger an upgrade
-    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 2)
+    set_current_version(db.engine, 2)
     db2 = Database(db_url)
     db2.init_db()
     
@@ -154,7 +160,7 @@ def test_existing_sessions_survive_upgrade(temp_db_dir, monkeypatch):
             conn.execute(text("INSERT INTO study_sessions (start_time, session_type, status) VALUES ('2023-01-01 00:00:00', 'stopwatch', 'completed')"))
             
     # Trigger an upgrade
-    monkeypatch.setattr("app.database.migrations.CURRENT_SCHEMA_VERSION", 2)
+    set_current_version(db.engine, 2)
     db2 = Database(db_url)
     db2.init_db()
     

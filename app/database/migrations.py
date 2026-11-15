@@ -6,7 +6,7 @@ from app.config.settings import DATA_DIR, logger
 
 # We define the current schema version of the application code.
 # V1 of the app is version 1. As we add columns for V2 features, we'll increment this.
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 def backup_database():
     db_path = DATA_DIR / "studytrack.db"
@@ -81,6 +81,29 @@ def run_migrations(engine):
                         conn.execute(text("ALTER TABLE active_timer ADD COLUMN target_duration INTEGER"))
                         set_current_version(engine, 2)
                         current_version = 2
+
+                    if current_version < 3:
+                        conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS activity_blocks (
+                                id INTEGER PRIMARY KEY,
+                                category VARCHAR(50) NOT NULL,
+                                name VARCHAR(255) NOT NULL,
+                                start_time DATETIME NOT NULL,
+                                end_time DATETIME NOT NULL,
+                                duration_seconds INTEGER NOT NULL DEFAULT 0,
+                                notes TEXT,
+                                study_session_id INTEGER,
+                                created_at DATETIME,
+                                updated_at DATETIME,
+                                FOREIGN KEY (study_session_id) REFERENCES study_sessions(id) ON DELETE SET NULL
+                            )
+                        """))
+                        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_activity_blocks_start_time ON activity_blocks (start_time)"))
+                        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_activity_blocks_end_time ON activity_blocks (end_time)"))
+                        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_activity_blocks_category ON activity_blocks (category)"))
+                        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_activity_blocks_study_session_id ON activity_blocks (study_session_id)"))
+                        set_current_version(engine, 3)
+                        current_version = 3
             
         except Exception as e:
             logger.critical(f"Database migration failed: {e}. Original data has been preserved in backup.")

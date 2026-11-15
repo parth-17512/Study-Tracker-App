@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone, timedelta
-from app.timer.timer_engine import TimerEngine, TimerState, TimerMode
+from app.timer.timer_engine import TimerEngine, TimerState, TimerMode, EarlyCompletionError
 
 def test_stopwatch_basic_flow():
     engine = TimerEngine()
@@ -126,3 +126,14 @@ def test_cancelled_timer_records_actual_duration():
     
     assert engine.state == TimerState.CANCELLED
     assert engine.accumulated_elapsed_seconds == 1500  # 25 * 60
+
+
+def test_countdown_rejects_early_completion():
+    engine = TimerEngine()
+    engine.start_countdown(3600)
+    engine.start_time = datetime.now(timezone.utc) - timedelta(minutes=30)
+
+    with pytest.raises(EarlyCompletionError):
+        engine.complete()
+
+    assert engine.state == TimerState.RUNNING

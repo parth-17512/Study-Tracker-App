@@ -4,6 +4,7 @@ from app.services.base_service import BaseService
 from app.repositories.session_repository import SessionRepository
 from app.database.models import StudySession
 from app.utils.time_utils import to_local_time
+from app.config.config_manager import ConfigManager
 
 class AnalyticsService(BaseService):
     def __init__(self, db=None):
@@ -20,44 +21,51 @@ class AnalyticsService(BaseService):
             total = sum((s.duration_seconds or 0) for s in sessions if s.status == "COMPLETED")
             return total
 
-    def calculate_current_streak(self, today: datetime) -> int:
+    def calculate_current_streak(self, today: datetime, daily_goal_seconds: Optional[int] = None) -> int:
         """
-        Calculate current contiguous daily streak.
-        If the user studied today, it counts. If they didn't study today but studied yesterday, the streak is alive.
-        If they didn't study today or yesterday, streak is 0.
+        Calculate the current contiguous daily streak based on meeting the daily
+        study threshold (50% of the configured daily goal). A day qualifies when
+        the total completed study duration reaches at least that threshold.
         """
+        if daily_goal_seconds is None:
+            daily_goal_seconds = ConfigManager().get("daily_goal_seconds", 6 * 3600)
+
+        daily_goal_seconds = int(daily_goal_seconds or (6 * 3600))
+        if daily_goal_seconds <= 0:
+            daily_goal_seconds = 6 * 3600
+
+        threshold_seconds = max(0, int(daily_goal_seconds * 0.5))
+
         with self.db.get_session() as session:
             all_sessions = self.session_repo.get_all_ordered_by_date(session)
-            
+
         if not all_sessions:
             return 0
-            
-        study_dates = set()
+
+        daily_totals = {}
         for s in all_sessions:
-            if s.status == "COMPLETED" and s.start_time:
-                study_dates.add(s.start_time.date())
-                
-        if not study_dates:
+            if s.status == "COMPLETED" and s.start_time and (s.duration_seconds or 0) > 0:
+                d = s.start_time.date()
+                daily_totals[d] = daily_totals.get(d, 0) + (s.duration_seconds or 0)
+
+        if not daily_totals:
             return 0
-            
-        streak = 0
+
         current_date = today.date()
-        
-        # Check today
-        if current_date in study_dates:
-            streak += 1
-            current_date -= timedelta(days=1)
-        else:
-            current_date -= timedelta(days=1)
-            if current_date not in study_dates:
-                return 0
-        
-        # Count backwards
-        while current_date in study_dates:
-            streak += 1
-            current_date -= timedelta(days=1)
-            
-        return streak
+
+        for offset in (0, 1):
+            candidate = current_date - timedelta(days=offset)
+            if daily_totals.get(candidate, 0) < threshold_seconds:
+                continue
+
+            streak = 1
+            previous_date = candidate - timedelta(days=1)
+            while previous_date in daily_totals and daily_totals.get(previous_date, 0) >= threshold_seconds:
+                streak += 1
+                previous_date -= timedelta(days=1)
+            return streak
+
+        return 0
 
     def get_recent_sessions(self, limit: int = 3) -> List[StudySession]:
         """Fetch the most recent completed sessions."""

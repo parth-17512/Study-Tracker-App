@@ -2,7 +2,7 @@ from typing import Optional
 from app.services.base_service import BaseService
 from app.repositories.timer_repository import TimerRepository
 from app.database.models import StudySession
-from app.timer.timer_engine import TimerEngine
+from app.timer.timer_engine import TimerEngine, EarlyCompletionError
 from app.timer.timer_state import TimerState
 
 class TimerService(BaseService):
@@ -41,13 +41,20 @@ class TimerService(BaseService):
 
     def complete(self):
         """Completes the timer, saves the session to the DB, and clears the active timer state."""
-        self.engine.complete()
-        
-        # We need to save the completed study session
+        if self.engine.state not in (TimerState.RUNNING, TimerState.PAUSED):
+            raise ValueError(f"Cannot complete from state {self.engine.state}")
+
+        try:
+            self.engine.complete()
+        except EarlyCompletionError:
+            raise
+
         with self.db.get_session() as session:
+            from app.timer.timer_engine import utc_now
+            end_time = utc_now()
             new_session = StudySession(
                 start_time=self.engine.start_time,
-                end_time=self.engine.target_end_time if self.engine.mode.value == 'countdown' else self.engine.start_time, # For now just placeholder, it should be now()
+                end_time=end_time,
                 duration_seconds=self.engine.get_elapsed_seconds(),
                 subject_id=self.engine.subject_id,
                 topic=self.engine.topic,
@@ -55,19 +62,14 @@ class TimerService(BaseService):
                 session_type=self.engine.mode.value,
                 status=self.engine.state.value
             )
-            # Fix end_time
-            from app.timer.timer_engine import utc_now
-            new_session.end_time = utc_now()
 
             session.add(new_session)
             self.repository.clear_active(session)
-            
-        # Award XP for the session
+
         from app.services.xp_service import XPService
         xp_service = XPService(self.db)
         xp_service.process_session_completion(self.engine.get_elapsed_seconds())
-            
-        # Reset the engine so it's clean for the next run
+
         self.engine.reset()
 
     def cancel(self):

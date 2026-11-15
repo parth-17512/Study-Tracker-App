@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from app.config.settings import DATA_DIR
 
@@ -7,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 class ConfigManager:
     """Manages persistent application settings using a JSON file."""
+
+    DAILY_GOAL_CHANGE_INTERVAL = timedelta(days=7)
     
     _instance = None
     
@@ -25,6 +28,7 @@ class ConfigManager:
             "desktop_notifications": True,
             "theme": "dark",
             "default_pomodoro_minutes": 25,
+            "daily_goal_seconds": 6 * 3600,
             "gemini_api_key": "",
             "llm_provider_priority": "gemini_first",
             "compatible_api_base_url": "",
@@ -67,8 +71,70 @@ class ConfigManager:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.settings, f, indent=4)
                 logger.info("Settings saved successfully.")
+            return True
         except Exception as e:
             logger.error(f"Failed to save settings: {e}")
+            return False
+
+    def get_daily_goal_change_available_at(self):
+        """Return the next allowed goal-change time in UTC, if a change was saved."""
+        last_changed_at = self.get("daily_goal_last_changed_at")
+        if not last_changed_at:
+            return None
+
+        try:
+            changed_at = datetime.fromisoformat(last_changed_at)
+        except (TypeError, ValueError):
+            logger.warning("Invalid daily goal change timestamp; allowing a new goal change.")
+            return None
+
+        if changed_at.tzinfo is None:
+            changed_at = changed_at.replace(tzinfo=timezone.utc)
+        else:
+            changed_at = changed_at.astimezone(timezone.utc)
+
+        return changed_at + self.DAILY_GOAL_CHANGE_INTERVAL
+
+    def can_change_daily_goal(self, now=None):
+        """Return whether the seven-day daily-goal change interval has elapsed."""
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        else:
+            now = now.astimezone(timezone.utc)
+
+        available_at = self.get_daily_goal_change_available_at()
+        return available_at is None or now >= available_at
+
+    def update_daily_goal(self, seconds: int, now=None) -> bool:
+        """Persist a daily-goal change and start its seven-day cooldown."""
+        if seconds <= 0:
+            raise ValueError("Daily goal must be greater than zero.")
+        if seconds == self.get("daily_goal_seconds", 6 * 3600):
+            return True
+        if not self.can_change_daily_goal(now):
+            return False
+
+        now = now or datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        else:
+            now = now.astimezone(timezone.utc)
+
+        previous_goal = self.get("daily_goal_seconds", 6 * 3600)
+        previous_changed_at = self.get("daily_goal_last_changed_at")
+        self.settings["daily_goal_seconds"] = seconds
+        self.settings["daily_goal_last_changed_at"] = now.isoformat()
+
+        if self.save():
+            return True
+
+        self.settings["daily_goal_seconds"] = previous_goal
+        if previous_changed_at is None:
+            self.settings.pop("daily_goal_last_changed_at", None)
+        else:
+            self.settings["daily_goal_last_changed_at"] = previous_changed_at
+        return False
             
     def get(self, key: str, default=None):
         return self.settings.get(key, default)

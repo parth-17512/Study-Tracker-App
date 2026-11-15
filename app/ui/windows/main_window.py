@@ -81,12 +81,18 @@ class MainWindow(QMainWindow):
         from app.ui.pages.calendar import CalendarPage
         self.pages["calendar"] = CalendarPage()
         self.pages_stack.addWidget(self.pages["calendar"])
-        
+
+        # Time Stamp
+        from app.ui.pages.timestamp import TimestampPage
+        self.pages["timestamp"] = TimestampPage()
+        self.pages["time_stamp"] = self.pages["timestamp"]
+        self.pages_stack.addWidget(self.pages["timestamp"])
+
         # Analytics
         from app.ui.pages.analytics import AnalyticsPage
         self.pages["analytics"] = AnalyticsPage()
         self.pages_stack.addWidget(self.pages["analytics"])
-        
+
         # Settings
         from app.ui.pages.settings import SettingsPage
         self.pages["settings"] = SettingsPage()
@@ -108,15 +114,20 @@ class MainWindow(QMainWindow):
         
     def navigate_to(self, page_name: str):
         """Navigate to a specific page."""
-        if page_name in self.pages:
-            target_page = self.pages[page_name]
+        normalized_name = page_name.lower().replace(" ", "_") if isinstance(page_name, str) else page_name
+        if normalized_name == "time_stamp":
+            normalized_name = "timestamp"
+
+        if normalized_name in self.pages:
+            target_page = self.pages[normalized_name]
             self.pages_stack.setCurrentWidget(target_page)
-            self.topbar.set_title(page_name.capitalize())
-            
+            title = "Time Stamp" if normalized_name == "timestamp" else page_name.capitalize()
+            self.topbar.set_title(title)
+
             # Auto-refresh data if the page supports it
             if hasattr(target_page, 'load_data'):
                 target_page.load_data()
-            # Bind Ctrl+K for Global Search
+
         from PySide6.QtGui import QShortcut, QKeySequence
         self.search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
         self.search_shortcut.activated.connect(self.show_search_dialog)

@@ -54,6 +54,97 @@ def test_dashboard_replaces_recent_activity_with_full_width_graph(qapp):
     assert not hasattr(dashboard, "recent_list_layout")
 
 
+def test_timestamp_page_renders_summary_and_activity_rows(qapp, monkeypatch):
+    from app.ui.pages import timestamp
+
+    segments = [
+        {
+            "category": "unallocated",
+            "name": "Unallocated time",
+            "notes": "",
+            "start_seconds": 0,
+            "end_seconds": 9 * 3600,
+            "duration_seconds": 9 * 3600,
+            "block_id": None,
+            "session_id": None,
+        },
+        {
+            "category": "study",
+            "name": "Math",
+            "notes": "",
+            "start_seconds": 9 * 3600,
+            "end_seconds": 10 * 3600,
+            "duration_seconds": 3600,
+            "block_id": None,
+            "session_id": 1,
+        },
+        {
+            "category": "unallocated",
+            "name": "Unallocated time",
+            "notes": "",
+            "start_seconds": 10 * 3600,
+            "end_seconds": 86400,
+            "duration_seconds": 14 * 3600,
+            "block_id": None,
+            "session_id": None,
+        },
+    ]
+
+    class FakeTimelineService:
+        def get_day_timeline(self, target_date):
+            return {
+                "date": target_date,
+                "entries": [],
+                "segments": segments,
+                "summary": {
+                    "study": 3600,
+                    "rest": 0,
+                    "other": 0,
+                    "unallocated": 82800,
+                    "categorized_total": 3600,
+                    "total_seconds": 86400,
+                },
+            }
+
+    monkeypatch.setattr(timestamp, "TimelineService", FakeTimelineService)
+    page = timestamp.TimestampPage()
+    page.resize(1000, 700)
+    page.show()
+    qapp.processEvents()
+
+    assert page.summary_values["study"].text() == "1h"
+    assert page.summary_values["categorized_total"].text() == "1h"
+    assert page.summary_values["unallocated"].text() == "23h"
+    assert len(page.timeline_bar.segments) == 3
+    assert page.date_picker.calendarPopup()
+    page.close()
+
+
+def test_activity_dialog_validates_same_day_times(qapp):
+    from datetime import date
+    from PySide6.QtCore import QTime
+    from PySide6.QtWidgets import QDialog
+    from app.ui.components.activity_dialog import ActivityDialog
+
+    target_date = date(2026, 11, 15)
+    dialog = ActivityDialog(target_date)
+    dialog.name_input.setText("Walk")
+    dialog.start_input.setTime(QTime(14, 0))
+    dialog.end_input.setTime(QTime(14, 0))
+    dialog._validate_and_accept()
+
+    assert dialog.result() != QDialog.DialogCode.Accepted
+    assert "later than start time" in dialog.feedback.text()
+
+    dialog.end_input.setTime(QTime(15, 0))
+    dialog._validate_and_accept()
+    assert dialog.result() == QDialog.DialogCode.Accepted
+
+    activity = dialog.get_data()
+    assert activity["start_time"].date() == target_date
+    assert activity["end_time"].hour == 15
+
+
 def test_subject_distribution_only_displays_top_ten_in_both_views(qapp):
     from app.ui.pages.analytics import AnalyticsPage
 

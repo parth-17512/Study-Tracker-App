@@ -3,6 +3,10 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 from app.timer.timer_state import TimerState, TimerMode
 
+class EarlyCompletionError(ValueError):
+    """Raised when a countdown is completed before its scheduled end time."""
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -92,16 +96,24 @@ class TimerEngine:
         self.paused_at = None
 
     def complete(self):
-        if self.state != TimerState.RUNNING:
+        if self.state not in (TimerState.RUNNING, TimerState.PAUSED):
             raise ValueError(f"Cannot complete from state {self.state}")
-            
+
+        if self.mode == TimerMode.COUNTDOWN and self.target_duration:
+            elapsed = self.get_elapsed_seconds()
+            if elapsed < self.target_duration:
+                raise EarlyCompletionError(
+                    "Session cannot be completed before its scheduled end time. "
+                    "Please wait until the countdown reaches zero."
+                )
+
         # Update elapsed time one last time before finalizing
         self.accumulated_elapsed_seconds = self.get_elapsed_seconds()
-        
-        # Enforce exact completion duration for countdowns
+
+        # Enforce exact completion duration for countdowns when the timer reached the end.
         if self.mode == TimerMode.COUNTDOWN and self.target_duration:
             self.accumulated_elapsed_seconds = self.target_duration
-            
+
         self.state = TimerState.COMPLETED
 
     def cancel(self):

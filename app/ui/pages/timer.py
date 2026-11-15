@@ -455,27 +455,39 @@ class TimerPage(QWidget):
 
     def sync_ui_state(self):
         state = self.timer_service.engine.state
-        
+        engine = self.timer_service.engine
+
         self.radio_stopwatch.setEnabled(state == TimerState.IDLE)
         self.radio_countdown.setEnabled(state == TimerState.IDLE)
-        
+
         if state != TimerState.IDLE:
-            if self.timer_service.engine.mode == TimerMode.COUNTDOWN:
+            if engine.mode == TimerMode.COUNTDOWN:
                 self.radio_countdown.setChecked(True)
             else:
                 self.radio_stopwatch.setChecked(True)
-        
+
         self.duration_input_widget.setVisible(state == TimerState.IDLE and self.radio_countdown.isChecked())
-        
-        if state != TimerState.IDLE and self.timer_service.engine.topic:
-            self.topic_input.setText(self.timer_service.engine.topic)
-        
+
+        if state != TimerState.IDLE and engine.topic:
+            self.topic_input.setText(engine.topic)
+
+        is_countdown_ready_to_complete = (
+            engine.mode == TimerMode.COUNTDOWN and engine.get_remaining_seconds() <= 0
+        )
+        complete_allowed = state in (TimerState.RUNNING, TimerState.PAUSED) and (
+            engine.mode != TimerMode.COUNTDOWN or is_countdown_ready_to_complete
+        )
+
         self.btn_start.setVisible(state == TimerState.IDLE)
         self.btn_pause.setVisible(state == TimerState.RUNNING)
         self.btn_resume.setVisible(state == TimerState.PAUSED)
         self.btn_complete.setVisible(state in (TimerState.RUNNING, TimerState.PAUSED))
+        self.btn_complete.setEnabled(complete_allowed)
+        self.btn_complete.setToolTip(
+            "" if complete_allowed else "Complete is only available when the countdown reaches zero."
+        )
         self.btn_cancel.setVisible(state in (TimerState.RUNNING, TimerState.PAUSED))
-        
+
         if state == TimerState.RUNNING:
             self.update_timer.start()
         elif state == TimerState.IDLE:
@@ -507,7 +519,15 @@ class TimerPage(QWidget):
         self.sync_ui_state()
 
     def complete_timer(self):
-        self.timer_service.complete()
+        try:
+            self.timer_service.complete()
+        except Exception as exc:
+            self.lbl_active_topic_feedback.setText(str(exc))
+            self.lbl_active_topic_feedback.setStyleSheet("font-size: 12px; color: " + Theme.WARNING_COLOR)
+            return
+
+        self.lbl_active_topic_feedback.setText("✓ Session completed")
+        self.lbl_active_topic_feedback.setStyleSheet("font-size: 12px; color: " + Theme.SUCCESS_COLOR)
         self.sync_ui_state()
         self.load_recent_sessions_for_editing()
 

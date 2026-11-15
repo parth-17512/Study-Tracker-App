@@ -3,6 +3,7 @@ import json
 import pytest
 from app.config.config_manager import ConfigManager
 from app.config.settings import DATA_DIR
+from datetime import datetime, timedelta, timezone
 
 @pytest.fixture
 def config_manager():
@@ -28,6 +29,7 @@ def test_default_settings(config_manager):
     assert config_manager.get("desktop_notifications") is True
     assert config_manager.get("theme") == "dark"
     assert config_manager.get("cloud_consent") is False
+    assert config_manager.get("daily_goal_seconds") == 6 * 3600
 
 def test_save_and_load(config_manager):
     config_manager.set("sound_enabled", False)
@@ -73,3 +75,27 @@ def test_migrating_legacy_provider_priority_keeps_cloud_consent_opt_in(config_ma
 
     assert config_manager.get("llm_provider_priority") == "gemini_first"
     assert config_manager.get("cloud_consent") is False
+
+
+def test_daily_goal_can_only_change_once_per_rolling_week(config_manager):
+    now = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
+
+    assert config_manager.update_daily_goal(8 * 3600, now=now) is True
+    config_manager.load()
+    assert config_manager.get("daily_goal_seconds") == 8 * 3600
+    assert config_manager.can_change_daily_goal(now=now + timedelta(days=6, hours=23)) is False
+    assert config_manager.update_daily_goal(7 * 3600, now=now + timedelta(days=6, hours=23)) is False
+    assert config_manager.get("daily_goal_seconds") == 8 * 3600
+
+    available_at = now + timedelta(days=7)
+    assert config_manager.get_daily_goal_change_available_at() == available_at
+    assert config_manager.update_daily_goal(7 * 3600, now=available_at) is True
+    assert config_manager.get("daily_goal_seconds") == 7 * 3600
+
+
+def test_unchanged_daily_goal_does_not_start_cooldown(config_manager):
+    now = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
+
+    assert config_manager.update_daily_goal(6 * 3600, now=now) is True
+    assert config_manager.get_daily_goal_change_available_at() is None
+    assert config_manager.update_daily_goal(7 * 3600, now=now) is True

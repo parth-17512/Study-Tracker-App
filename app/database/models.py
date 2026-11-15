@@ -35,6 +35,22 @@ class StudySession(Base):
 
     subject = relationship("Subject", back_populates="sessions")
 
+class ActivityBlock(Base):
+    __tablename__ = "activity_blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=False, index=True)
+    end_time = Column(DateTime(timezone=True), nullable=False, index=True)
+    duration_seconds = Column(Integer, nullable=False, default=0)
+    notes = Column(Text, nullable=True)
+    study_session_id = Column(Integer, ForeignKey("study_sessions.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+    study_session = relationship("StudySession")
+
 class Goal(Base):
     __tablename__ = "goals"
 
