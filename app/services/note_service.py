@@ -10,7 +10,13 @@ class NoteService:
         self.db = db_override or Database()
         from app.repositories.note_repository import NoteRepository
         self.repository = NoteRepository()
-        self.rag = RAGService()
+        self._rag = None
+
+    @property
+    def rag(self):
+        if self._rag is None:
+            self._rag = RAGService()
+        return self._rag
 
     def get_all_nodes(self) -> List[NoteNode]:
         """Get all nodes as a flat list. Useful for building a tree in-memory."""

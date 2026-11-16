@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database.database import Base, Database
 from app.services.note_service import NoteService
+from app.services import note_service as note_service_module
 
 # In-memory database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -17,6 +18,20 @@ class MockDatabase(Database):
 def note_service():
     mock_db = MockDatabase()
     return NoteService(db_override=mock_db)
+
+def test_note_service_defers_rag_initialization(monkeypatch):
+    instances = []
+
+    class FakeRAGService:
+        def __init__(self):
+            instances.append(self)
+
+    monkeypatch.setattr(note_service_module, "RAGService", FakeRAGService)
+    service = NoteService(db_override=MockDatabase())
+
+    assert instances == []
+    rag = service.rag
+    assert instances == [rag]
 
 def test_folder_creation(note_service):
     folder = note_service.create_node("My Folder", is_folder=True)

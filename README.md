@@ -87,6 +87,7 @@ You can package StudyTrack into a standalone Windows `.exe`.
 python build.py
 ```
 This script automates PyInstaller and produces both a single-file executable (`dist/StudyTrack.exe`) and an onedir build (`dist/StudyTrack/StudyTrack.exe`).
+The local note index uses Chroma's ONNX embedding backend instead of bundling PyTorch; AI indexing is initialized only when needed.
 
 ---
 

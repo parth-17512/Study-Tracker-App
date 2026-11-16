@@ -24,6 +24,26 @@ def test_ui_imports():
     except Exception as e:
         pytest.fail(f"UI import failed with error: {e}")
 
+def test_main_window_defers_pages_until_navigation(qapp, monkeypatch):
+    from PySide6.QtWidgets import QWidget
+    from app.ui.windows import main_window
+
+    monkeypatch.setattr(main_window, "DashboardPage", lambda: QWidget())
+    monkeypatch.setattr(main_window, "SessionService", lambda: object())
+    monkeypatch.setattr(main_window, "NotificationService", lambda parent: object())
+
+    window = main_window.MainWindow(timer_service=object())
+    assert set(window.pages) == {"dashboard"}
+    assert window.pages_stack.count() == 1
+
+    notes_page = QWidget()
+    window.page_factories["notes"] = lambda: notes_page
+    window.navigate_to("notes")
+
+    assert window.pages["notes"] is notes_page
+    assert window.pages_stack.count() == 2
+    window.close()
+
 def test_ui_instantiation(qapp):
     """Smoke test to ensure pages can be instantiated without crashing."""
     try:

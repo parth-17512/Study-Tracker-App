@@ -1,9 +1,3 @@
-try:
-    import chromadb
-    from chromadb.config import Settings
-    HAS_CHROMADB = True
-except ImportError:
-    HAS_CHROMADB = False
 import logging
 from app.config.settings import APP_DATA_DIR
 from pathlib import Path
@@ -30,16 +24,17 @@ class RAGService:
         self.client = None
         self.collection = None
         
-        if HAS_CHROMADB:
+        try:
+            import chromadb
+            from chromadb.api.types import DefaultEmbeddingFunction
+        except ImportError:
+            logger.warning("chromadb not installed. RAG Service will be a no-op.")
+        else:
             try:
                 logger.info(f"Initializing local ChromaDB at {self.db_dir}")
                 self.client = chromadb.PersistentClient(path=str(self.db_dir))
                 
-                # sentence-transformers embedding function
-                from chromadb.utils import embedding_functions
-                self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name="all-MiniLM-L6-v2"
-                )
+                self.embedding_fn = DefaultEmbeddingFunction()
                 
                 self.collection = self.client.get_or_create_collection(
                     name="notes",
@@ -48,8 +43,6 @@ class RAGService:
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize ChromaDB: {e}")
-        else:
-            logger.warning("chromadb not installed. RAG Service will be a no-op.")
             
         self._initialized = True
         

@@ -5,19 +5,20 @@ import shutil
 from pathlib import Path
 
 def setup_icon():
+    assets_dir = Path("assets")
+    assets_dir.mkdir(exist_ok=True)
+
+    icon_path = assets_dir / "studytrack.ico"
+    source_img = Path(r"C:\Users\Parth singh\.gemini\antigravity-ide\brain\5c13d152-f2a8-4d9d-82f9-7d6ef60dda9a\studytrack_icon_1789573285385.jpg")
+    if not source_img.exists() and icon_path.exists():
+        return icon_path
+
     try:
         from PIL import Image
     except ImportError:
         print("Pillow is required to generate the icon. Please install it.")
         sys.exit(1)
         
-    assets_dir = Path("assets")
-    assets_dir.mkdir(exist_ok=True)
-    
-    icon_path = assets_dir / "studytrack.ico"
-    # Source image from the AI generation
-    source_img = Path(r"C:\Users\Parth singh\.gemini\antigravity-ide\brain\5c13d152-f2a8-4d9d-82f9-7d6ef60dda9a\studytrack_icon_1789573285385.jpg")
-    
     if source_img.exists():
         img = Image.open(source_img)
         # Convert to RGBA to ensure proper icon transparency handling, even from jpg
@@ -45,7 +46,12 @@ def build_app(mode="onedir"):
         "--noconfirm",
         "--clean",
         "--icon=assets/studytrack.ico",
-        "--exclude-module=onnxruntime",
+        "--hidden-import=onnxruntime",
+        "--hidden-import=tokenizers",
+        "--hidden-import=tqdm",
+        "--exclude-module=torch",
+        "--exclude-module=transformers",
+        "--exclude-module=sentence_transformers",
         "main.py"
     ]
     

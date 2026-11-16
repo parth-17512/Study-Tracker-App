@@ -5,8 +5,6 @@ from app.ui.widgets.topbar import Topbar
 from app.ui.pages.dashboard import DashboardPage
 from app.ui.theme import Theme
 
-from app.ui.pages.timer import TimerPage
-from app.ui.pages.coach import CoachPage
 from app.services.timer_service import TimerService
 from app.services.session_service import SessionService
 from app.services.notification_service import NotificationService
@@ -59,58 +57,64 @@ class MainWindow(QMainWindow):
         
         # Connect Navigation
         self.sidebar.navigation_requested.connect(self.navigate_to)
+        from PySide6.QtGui import QShortcut, QKeySequence
+        self.search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.search_shortcut.activated.connect(self.show_search_dialog)
         
     def setup_pages(self):
         """Initialize and add pages to the stack."""
         self.pages = {}
-        
-        # Dashboard
-        self.pages["dashboard"] = DashboardPage()
-        self.pages_stack.addWidget(self.pages["dashboard"])
-        
-        # Timer
-        self.pages["timer"] = TimerPage(self.timer_service, self.notification_service)
-        self.pages_stack.addWidget(self.pages["timer"])
-        
-        # Sessions
-        from app.ui.pages.sessions import SessionsPage
-        self.pages["sessions"] = SessionsPage()
-        self.pages_stack.addWidget(self.pages["sessions"])
-        
-        # Calendar
-        from app.ui.pages.calendar import CalendarPage
-        self.pages["calendar"] = CalendarPage()
-        self.pages_stack.addWidget(self.pages["calendar"])
-
-        # Time Stamp
-        from app.ui.pages.timestamp import TimestampPage
-        self.pages["timestamp"] = TimestampPage()
-        self.pages["time_stamp"] = self.pages["timestamp"]
-        self.pages_stack.addWidget(self.pages["timestamp"])
-
-        # Analytics
-        from app.ui.pages.analytics import AnalyticsPage
-        self.pages["analytics"] = AnalyticsPage()
-        self.pages_stack.addWidget(self.pages["analytics"])
-
-        # Settings
-        from app.ui.pages.settings import SettingsPage
-        self.pages["settings"] = SettingsPage()
-        self.pages_stack.addWidget(self.pages["settings"])
-        
-        # Notes
-        from app.ui.pages.notes import NotesPage
-        self.pages["notes"] = NotesPage()
-        self.pages_stack.addWidget(self.pages["notes"])
-        
-        # Coach
-        self.pages["coach"] = CoachPage()
-        self.pages_stack.addWidget(self.pages["coach"])
-        
-
-            
-        # Set default page
+        self.page_factories = {
+            "dashboard": lambda: DashboardPage(),
+            "timer": self._create_timer_page,
+            "sessions": self._create_sessions_page,
+            "calendar": self._create_calendar_page,
+            "timestamp": self._create_timestamp_page,
+            "analytics": self._create_analytics_page,
+            "settings": self._create_settings_page,
+            "notes": self._create_notes_page,
+            "coach": self._create_coach_page,
+        }
+        self._create_page("dashboard")
         self.navigate_to("dashboard")
+
+    def _create_page(self, page_name: str):
+        page = self.page_factories[page_name]()
+        self.pages[page_name] = page
+        self.pages_stack.addWidget(page)
+        return page
+
+    def _create_timer_page(self):
+        from app.ui.pages.timer import TimerPage
+        return TimerPage(self.timer_service, self.notification_service)
+
+    def _create_sessions_page(self):
+        from app.ui.pages.sessions import SessionsPage
+        return SessionsPage()
+
+    def _create_calendar_page(self):
+        from app.ui.pages.calendar import CalendarPage
+        return CalendarPage()
+
+    def _create_timestamp_page(self):
+        from app.ui.pages.timestamp import TimestampPage
+        return TimestampPage()
+
+    def _create_analytics_page(self):
+        from app.ui.pages.analytics import AnalyticsPage
+        return AnalyticsPage()
+
+    def _create_settings_page(self):
+        from app.ui.pages.settings import SettingsPage
+        return SettingsPage()
+
+    def _create_notes_page(self):
+        from app.ui.pages.notes import NotesPage
+        return NotesPage()
+
+    def _create_coach_page(self):
+        from app.ui.pages.coach import CoachPage
+        return CoachPage()
         
     def navigate_to(self, page_name: str):
         """Navigate to a specific page."""
@@ -118,8 +122,10 @@ class MainWindow(QMainWindow):
         if normalized_name == "time_stamp":
             normalized_name = "timestamp"
 
-        if normalized_name in self.pages:
-            target_page = self.pages[normalized_name]
+        if normalized_name in self.page_factories:
+            target_page = self.pages.get(normalized_name)
+            if target_page is None:
+                target_page = self._create_page(normalized_name)
             self.pages_stack.setCurrentWidget(target_page)
             title = "Time Stamp" if normalized_name == "timestamp" else page_name.capitalize()
             self.topbar.set_title(title)
@@ -127,10 +133,6 @@ class MainWindow(QMainWindow):
             # Auto-refresh data if the page supports it
             if hasattr(target_page, 'load_data'):
                 target_page.load_data()
-
-        from PySide6.QtGui import QShortcut, QKeySequence
-        self.search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
-        self.search_shortcut.activated.connect(self.show_search_dialog)
 
     def show_search_dialog(self):
         from app.ui.components.search_dialog import SearchDialog
