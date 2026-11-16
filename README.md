@@ -1,101 +1,161 @@
-# StudyTrack V2: Build a Better You 🚀
+# StudyTrack
 
-StudyTrack is a comprehensive, offline-first personal desktop application designed to supercharge your productivity, rigorously track your study time, and organize your learning materials. With the massive **V2 Upgrade**, StudyTrack evolves from a simple tracker into an intelligent, AI-powered learning ecosystem with beautiful modern aesthetics, gamification, and deep analytical capabilities.
+### Turn study intentions into consistent progress.
 
-Whether you are a student preparing for exams, a professional upskilling, or a lifelong learner, StudyTrack provides the structure, insights, and motivation needed to achieve your goals consistently.
+StudyTrack is a desktop study and productivity companion for people who want to build better learning habits. It brings focused study sessions, personal notes, a full-day time map, progress analytics, and optional AI assistance together in one place—so learners can spend less effort piecing together their routine and more time making meaningful progress.
 
----
+> **The idea behind the project:** studying is not just about counting hours. It is about building consistency, understanding how you use your time, and making your next study session easier to start.
 
-## 🌟 What's New in V2? (The AI Revolution)
+## Who StudyTrack is for
 
-StudyTrack V2 introduces a suite of cutting-edge AI features, seamless UI/UX redesigns, and robust gamification designed to keep you engaged and on track.
+- **Students** preparing for exams, managing coursework, or trying to make a regular study routine stick.
+- **Self-directed learners** exploring new topics and keeping their learning resources organized.
+- **Professionals** tracking time spent on upskilling and reviewing their progress over time.
+- **Anyone building a focus habit** who wants a private, practical way to understand where their time goes.
 
-### 🤖 AI-Powered Study Coach (RAG Integration)
-- **Deep Note Context (RAG):** The built-in AI Study Coach doesn't just give generic advice. It uses **Retrieval-Augmented Generation (ChromaDB)** to read and search through your personal Markdown notes. Ask it to "Summarize my notes on Calculus" and it will read your actual documents to construct the answer!
-- **Intelligent Intent Routing:** Powered by **TypeSafe AI's Jev model**, the AI router accurately determines what you are asking for lightning fast, instantly routing you to stats, note retrieval, or general chat.
-- **Persistent Chat History:** Your conversations with the Coach are saved locally. You can revisit past study strategies or seamlessly pick up where you left off. 
-- **AI Formatting Assistant:** Inside the Notes Editor, click the AI Format button to instantly correct spelling, fix broken list numbering, and beautifully format your raw notes using AI.
+## Why use StudyTrack?
 
-### 🧠 Advanced AI Analytical Tool
-- **Streaming Live Insights:** Navigate to the Analytics tab to generate a deep-dive AI report on your study habits.
-- **Actionable Feedback:** The AI aggregates your lifetime stats, week-over-week trends, and subject distribution to identify your **Strengths**, **Weaknesses**, and actionable steps to increase your focus time. The response streams beautifully into the UI in real-time Markdown.
+Many productivity tools record a timer or store notes, but leave learners to connect the dots themselves. StudyTrack connects the everyday parts of a learning routine: plan and time a session, capture useful notes, review the day, and use your own history to decide what to improve next.
 
-### 🎮 Gamification & XP System
-- **Study to Level Up:** Every focused session you complete earns you XP based on the duration. 
-- **Level Progression:** Watch your level increase on the completely redesigned Dashboard. Gamifying your study habits makes consistency addictive and rewarding.
+It is designed to make progress visible without turning learning into a competition. Your sessions and notes stay on your computer by default, while optional hosted AI features are controlled through Settings.
 
-### 🎨 Premium Visual Redesign
-- **Polished Dashboard:** The entire dashboard has been rebuilt into a clean, modern, and responsive 2x2 grid layout.
-- **Typographic Hierarchy:** Stunning typography, sleek horizontal progress bars, and subtle aesthetic touches make the app feel like a premium, production-ready tool.
-- **Beautiful Heatmap:** A GitHub-style Activity Heatmap tracks your daily study intensity over months and years.
+## What you can do
 
----
+### Focus and record study sessions
 
-## 🛠️ Core Features
+- Run a stopwatch or a countdown timer for focused work.
+- Pause and resume a session, then save it with a topic and optional notes.
+- Recover an active timer after closing and reopening the app.
+- Review, search, edit, and manage saved study sessions.
 
-### ⏱️ Advanced Timer & Session Tracking
-- **Stopwatch & Pomodoro-style Countdown:** Highly accurate timer engine that tracks elapsed time mathematically, preventing drift and data loss even if the app crashes.
-- **Seamless Recovery:** Close the app mid-session? No problem. The timer state is preserved locally and resumes perfectly upon restart.
+### Map your whole day
 
-### 📝 Integrated Knowledge Management (Notes)
-- **Hierarchical File Explorer:** Organize your learning materials with nested folders. Supports intuitive drag-and-drop mechanics.
-- **Rich Markdown Editor:** Write notes efficiently using a distraction-free text editor with a built-in formatting toolbar and live UI Markdown rendering.
-- **Auto-Save:** Never lose your thoughts. Debounced auto-saving instantly secures your notes to the local database as you type.
+- Use the **Time Stamp** view to see a selected day as a complete 24-hour timeline.
+- See completed study sessions alongside manually entered rest and other activities.
+- Add, edit, or remove non-study activities and notes.
+- Review time spent studying, resting, on other activities, and time still uncategorized.
+- Identify gaps in the day. Unallocated time means it has not been categorized; it does not necessarily mean you were inactive.
 
-### ⚙️ Rock-Solid Architecture
-- **Offline-First & Private:** No cloud sync required, no accounts, no subscriptions. Your data lives securely on your machine using a local SQLite database.
-- **Safe Migrations:** V2 includes an automated database migration engine that detects older schema versions, safely backs up your legacy data, and seamlessly upgrades it without data loss.
+### Organize learning notes
 
----
+- Keep notes and folders in a hierarchical library.
+- Write and preview Markdown, with automatic saving as you edit.
+- Search notes, mark favorites, and revisit recent materials.
+- Optionally use AI to polish and format a note before applying the suggested changes.
 
-## 🚀 Setup and Installation
+### Understand your progress
+
+- Review study totals, session history, average session length, and time by subject.
+- Compare recent study periods and inspect trends across days and weeks.
+- Explore daily activity in the calendar and study heatmap.
+- Track daily goal progress and study streaks. A day qualifies toward a streak when completed study time reaches at least half the configured daily goal.
+- Earn XP for completed focus sessions and see your level progress.
+
+### Take your data with you
+
+- Export session records as CSV or JSON.
+- Export a feature-engineered CSV dataset for your own machine-learning experiments.
+
+## AI and machine-learning features
+
+AI and ML are designed as practical extensions of your study history—not as claims that the app predicts outcomes or replaces your judgment.
+
+### AI Study Coach
+
+- Ask questions about your study activity and learning routine.
+- The coach can use selected, read-only app tools to retrieve study statistics, streaks, subject breakdowns, and note content.
+- Note retrieval uses **retrieval-augmented generation (RAG)**: notes are split into chunks, indexed in a local ChromaDB collection, and relevant passages can be retrieved to ground a response.
+- Chat history is stored locally so you can return to earlier conversations.
+- Generate AI-written study insights from analytics data, and optionally format notes with AI.
+- Configure Gemini or a hosted API that supports the OpenAI-compatible chat-completions format. Choose provider priority and fallback behavior in Settings.
+
+### ML-ready study dataset
+
+StudyTrack includes a data-preparation pipeline that exports completed sessions with useful temporal and historical features, including:
+
+- Target session duration
+- Local start hour, day of week, and weekend indicator
+- Study time and session count in the preceding seven days
+- Approximate streak at the start of each session
+
+Rolling-context features are calculated from sessions strictly before the session being described, making the export a useful starting point for personal analysis and model experiments. The app prepares and exports the dataset; model training and predictions are left to your chosen ML workflow.
+
+## Privacy and AI controls
+
+- StudyTrack stores its SQLite database, settings, chat history, and local note index on your computer.
+- The app does not require an account or cloud sync for its core timer, notes, timeline, and analytics features.
+- Hosted AI providers are optional. Cloud context must be explicitly enabled in Settings before the app uses configured hosted providers.
+- When enabled, relevant prompts and context may be sent to the provider you configured. Review that provider's privacy policy, data handling, pricing, and usage limits before use.
+- If hosted AI is not configured or permitted, core local features remain available.
+
+## Technology
+
+- **Python 3.12+**
+- **PySide6** desktop interface
+- **SQLite and SQLAlchemy** for local persistence
+- **ChromaDB** for local semantic note retrieval
+- **Gemini and OpenAI-compatible APIs** for optional hosted AI
+- **pytest** for automated tests
+- **PyInstaller** for Windows executable packaging
+
+## Get started
 
 ### Requirements
-- Python 3.12+
-- PySide6 (UI Framework)
-- SQLAlchemy (ORM)
-- google-genai, chromadb, sentence-transformers (AI & RAG)
 
-### Development
-How to run the app in development mode from source:
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/parth-17512/Study-Tracker-App.git
-   cd Study-Tracker-App
-   ```
-2. **Create and activate virtual environment**:
-   ```bash
-   python -m venv venv
-   .\venv\Scripts\activate
-   ```
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. **Configure AI providers (optional)**:
-   - Open **Settings → AI Study Coach & LLM Providers**. Configure your Gemini API key and explicitly enable cloud context consent. Gemini is tried first by default.
-   - Optionally configure another hosted service that implements the OpenAI-compatible `POST /chat/completions` API: enter its HTTPS base URL, API key, model ID, and display name. This supports compatible APIs only, not every provider's proprietary API format. Verify each vendor's current free-tier, usage limits, and terms; StudyTrack cannot guarantee free or unlimited tokens.
-   - Choose Gemini-first fallback, compatible-API-first fallback, or a single-provider mode in Settings. Failures, rate limits, and quota errors advance to the next enabled provider. If none succeeds, data-backed Coach summaries remain available and provider failures are reported.
-5. **Run the application**:
-   ```bash
-   python main.py
-   ```
+- Python 3.12 or newer
+- Windows is the primary packaged target. Building the standalone `.exe` requires Windows.
 
-### Build (Creating an Executable)
-You can package StudyTrack into a standalone Windows `.exe`.
-```bash
+### Run from source
+
+```powershell
+git clone https://github.com/parth-17512/Study-Tracker-App.git
+cd Study-Tracker-App
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python main.py
+```
+
+AI is optional. To use hosted AI features, open **Settings → AI Study Coach & LLM Providers**, configure a provider, and explicitly enable cloud context consent. Compatible hosted APIs must support the OpenAI-compatible `POST /chat/completions` format.
+
+### Run tests
+
+```powershell
+pytest
+```
+
+### Build the Windows executable
+
+```powershell
 python build.py
 ```
-This script automates PyInstaller and produces both a single-file executable (`dist/StudyTrack.exe`) and an onedir build (`dist/StudyTrack/StudyTrack.exe`).
-The local note index uses Chroma's ONNX embedding backend instead of bundling PyTorch; AI indexing is initialized only when needed.
 
----
+The build script creates a single-file executable at `dist/StudyTrack.exe` and an onedir build at `dist/StudyTrack/StudyTrack.exe`. The local note index uses ChromaDB's default ONNX embedding backend; its initialization is deferred until the note-index service is needed.
 
-## 🗄️ User Data & Backups
+## Data location
 
-StudyTrack is built around **privacy and data safety**. Your persistent user data is **never** bundled inside the temporary `.exe` directory.
+On Windows, StudyTrack keeps persistent application data under:
 
-All persistent data is stored securely in your Windows profile:
-`%APPDATA%\StudyTrack\` (e.g., `C:\Users\<username>\AppData\Roaming\StudyTrack\`)
+```text
+%APPDATA%\StudyTrack\
+```
 
-This ensures that upgrading to future versions of StudyTrack will **never** overwrite your study sessions, XP, or notes!
+This includes the SQLite database and local application data, separate from the temporary files used by a packaged executable.
+
+## Project structure
+
+```text
+app/
+  ai/          Coach agent, tools, and provider integrations
+  database/    SQLite models, database setup, and migrations
+  ml/          Feature extraction and dataset export
+  services/    Study, notes, timeline, analytics, and data services
+  timer/       Timer engine and recoverable timer state
+  ui/          PySide6 pages, components, and widgets
+tests/         Automated test suite
+ml_experiments/ ML dataset notes and experiment starting point
+```
+
+## Project objective
+
+StudyTrack was created to make focused learning easier to sustain and easier to understand. By bringing time tracking, daily planning, note-taking, analytics, and optional AI into one private-first desktop app, it helps learners turn small, repeatable study sessions into a routine—and gives them the context to keep improving that routine.
